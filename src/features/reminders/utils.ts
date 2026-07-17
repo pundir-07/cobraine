@@ -63,6 +63,23 @@ export function parseDate(input: string): Date | null {
 
     return date;
 }
+
+export function getToday(): Date {
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+
+    return today;
+}
+
+export function getTomorrow(): Date {
+    const tomorrow = getToday();
+
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return tomorrow;
+}
+
 export function parseTime(input: string, date: Date): Date | null {
     input = input.trim().toLowerCase();
 
@@ -99,4 +116,31 @@ export function parseTime(input: string, date: Date): Date | null {
     result.setHours(hour, minute, 0, 0);
 
     return result;
+}
+
+export function formatReminderDateTime(date: Date): string {
+    return new Intl.DateTimeFormat("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(date);
+}
+
+export function formatReminderDate(date: Date): string {
+    return new Intl.DateTimeFormat("en-IN", {
+        dateStyle: "medium",
+    }).format(date);
+}
+
+export function formatReminderTime(date: Date): string {
+    return new Intl.DateTimeFormat("en-IN", {
+        timeStyle: "short",
+    }).format(date);
+}
+
+export function escapeHtml(value: string): string {
+    return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
 }

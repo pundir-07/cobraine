@@ -1,20 +1,47 @@
-import { Context, InlineKeyboard } from "grammy";
-import { ParseMode } from "grammy/types";
+import { InlineKeyboard } from "grammy";
+
+export type ReminderPhase = "menu" | "title" | "date" | "time" | "confirm";
 
 export type ReminderInteractionPhase = {
-    title: string;
+    id: ReminderPhase;
     text: string;
     menu?: InlineKeyboard;
-    parseMode?: ParseMode;
-    next?: ReminderInteractionPhase;
-    prev?: ReminderInteractionPhase;
 };
 
-export type Reminder = {
+export type ReminderDraft = {
+    title?: string;
+    date?: Date;
+    remindAt?: Date;
+};
+
+export type ReminderStatus =
+    | "scheduled"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled";
+
+export type ReminderRecord = {
+    id: string;
+    chatId: string;
+    userId: string;
     title: string;
-    time: string;
-    date: string;
-    repeat: string;
+    remindAt: string;
+    status: ReminderStatus;
+    attempts: string;
+    createdAt: string;
+    updatedAt: string;
+    processingStartedAt?: string;
+    completedAt?: string;
+    failedAt?: string;
+    failureReason?: string;
+};
+
+export type CreateReminderInput = {
+    chatId: number;
+    userId: number;
+    title: string;
+    remindAt: Date;
 };
 
 export type ReminderCallBackQuery =
@@ -25,12 +52,4 @@ export type ReminderCallBackQuery =
     | "reminder:date:today"
     | "reminder:date:tomorrow"
     | "reminder:date:custom"
-    | "reminder:time:now"
-    // TODO implement time repeat callbacks
-    | "reminder:confirm"
-    | "reminder:repeat:day"
-    | "reminder:repeat:hour"
-    | "reminder:repeat:week"
-    | "reminder:repeat:month"
-    | "reminder:repeat:year";
-
+    | "reminder:confirm";
