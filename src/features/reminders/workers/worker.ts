@@ -1,14 +1,14 @@
 import { Bot } from "grammy";
 import dotenv from "dotenv";
-import { connectRedis, disconnectRedis } from "../lib/redis";
+import { connectRedis, disconnectRedis } from "../../../lib/redis";
 import {
     claimDueReminder,
     completeReminder,
     failReminder,
     getReminder,
     recoverOneStaleReminder,
-} from "../features/reminders/service";
-import { escapeHtml } from "../features/reminders/utils";
+} from "../service";
+import { escapeHtml } from "../utils";
 
 dotenv.config();
 
