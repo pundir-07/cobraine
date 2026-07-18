@@ -10,6 +10,7 @@ reminderComposer.command("reminder", async (ctx) => {
 
   userInteraction.set(userId, interaction);
   await interaction.initialise(ctx);
+  
 });
 reminderComposer.callbackQuery(/^reminder:/, async (ctx) => {
   const userId = ctx.update.callback_query?.from.id!;
@@ -22,7 +23,10 @@ reminderComposer.callbackQuery(/^reminder:/, async (ctx) => {
   }
 });
 
-reminderComposer.on("message:text", async (ctx) => {
+reminderComposer.on("message:text", async (ctx,next) => {
+  if(ctx.update.message.text.startsWith("/")){
+    next()
+  }
   const userId = ctx.update.message?.from.id!;
   let interaction = userInteraction.get(userId);
   if (interaction?.type == "reminder") {
