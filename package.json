@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "worker:reminders": "tsx watch src/workers/reminders.ts",
+    "worker:reminders": "tsx watch src/features/reminders/workers/worker.ts",
     "redis": "redis-server .redis/redis.conf",
     "redis:ping": "redis-cli -h 127.0.0.1 -p 6379 ping"
   },
@@ -14,6 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@grammyjs/menu": "^1.3.1",
+    "bullmq": "^5.80.8",
     "dotenv": "^17.4.2",
     "grammy": "^1.44.0",
     "redis": "^6.1.0"

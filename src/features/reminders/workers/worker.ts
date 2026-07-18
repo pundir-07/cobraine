@@ -1,72 +1,99 @@
+import { Worker } from "bullmq";
 import { Bot } from "grammy";
 import dotenv from "dotenv";
-import { connectRedis, disconnectRedis } from "../../../lib/redis";
-import {
-    claimDueReminder,
-    completeReminder,
-    failReminder,
-    getReminder,
-    recoverOneStaleReminder,
-} from "../service";
+import { connectRedis } from "../../../lib/redis";
+import { getReminder } from "../service";
 import { escapeHtml } from "../utils";
 
 dotenv.config();
 
-const POLL_INTERVAL_MS = 1_000;
+const REMINDERS_QUEUE_NAME = "reminders";
 
 async function main() {
-    await connectRedis();
-
     const bot = new Bot(process.env.BOT_TOKEN!);
 
-    process.once("SIGINT", () => shutdown());
-    process.once("SIGTERM", () => shutdown());
+    const worker = new Worker(
+        REMINDERS_QUEUE_NAME,
+        async (job) => {
+            const { reminderId } = job.data as { reminderId: string };
+            const client = await connectRedis();
+            const now = new Date().toISOString();
 
-    while (true) {
-        await recoverStaleReminders();
-        await processDueReminder(bot);
-        await sleep(POLL_INTERVAL_MS);
-    }
-}
+            await client.hSet(getReminderKey(reminderId), {
+                status: "processing",
+                processingStartedAt: now,
+                updatedAt: now,
+            });
 
-async function processDueReminder(bot: Bot) {
-    const reminderId = await claimDueReminder();
+            const reminder = await getReminder(reminderId);
 
-    if (!reminderId) return;
+            if (!reminder) {
+                return;
+            }
 
-    try {
-        const reminder = await getReminder(reminderId);
+            await bot.api.sendMessage(
+                Number(reminder.chatId),
+                `🔔 <b>Reminder</b>\n\n${escapeHtml(reminder.title)}`,
+                { parse_mode: "HTML" },
+            );
+        },
+        {
+            connection: {
+                host:
+                    process.env.REDIS_SERVER_URL
+                        ? new URL(process.env.REDIS_SERVER_URL).hostname
+                        : "127.0.0.1",
+                port: process.env.REDIS_SERVER_URL
+                    ? Number(new URL(process.env.REDIS_SERVER_URL).port) || 6379
+                    : 6379,
+            },
+            concurrency: 5,
+            lockDuration: 60_000,
+            stalledInterval: 30_000,
+        },
+    );
 
-        if (!reminder) {
-            await completeReminder(reminderId);
-            return;
+    worker.on("completed", async (job) => {
+        const { reminderId } = job.data as { reminderId: string };
+        const client = await connectRedis();
+        const now = new Date().toISOString();
+
+        await client.hSet(getReminderKey(reminderId), {
+            status: "completed",
+            completedAt: now,
+            updatedAt: now,
+        });
+    });
+
+    worker.on("failed", async (job, error) => {
+        if (!job) return;
+
+        const { reminderId } = job.data as { reminderId: string };
+        const client = await connectRedis();
+        const now = new Date().toISOString();
+
+        if (job.attemptsMade >= (job.opts.attempts ?? 3)) {
+            await client.hSet(getReminderKey(reminderId), {
+                status: "failed",
+                failedAt: now,
+                failureReason: error.message,
+                updatedAt: now,
+            });
+        } else {
+            await client.hSet(getReminderKey(reminderId), {
+                status: "scheduled",
+                failureReason: error.message,
+                updatedAt: now,
+            });
         }
+    });
 
-        await bot.api.sendMessage(
-            Number(reminder.chatId),
-            `🔔 <b>Reminder</b>\n\n${escapeHtml(reminder.title)}`,
-            { parse_mode: "HTML" },
-        );
-
-        await completeReminder(reminderId);
-    } catch (error) {
-        await failReminder(reminderId, error);
-    }
+    process.once("SIGINT", () => worker.close());
+    process.once("SIGTERM", () => worker.close());
 }
 
-async function recoverStaleReminders() {
-    while (await recoverOneStaleReminder()) {
-        // Keep recovering until there are no stale processing reminders left.
-    }
-}
-
-function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function shutdown() {
-    await disconnectRedis();
-    process.exit(0);
+function getReminderKey(id: string) {
+    return `reminder:${id}`;
 }
 
 main().catch((error) => {
