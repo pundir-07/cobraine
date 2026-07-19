@@ -1,8 +1,7 @@
 import { Composer } from "grammy";
 import { ReminderInteraction } from "./handlers";
+import { userInteraction } from "../../lib/userInteraction";
 const reminderComposer = new Composer();
-
-const userInteraction = new Map<number, ReminderInteraction>();
 
 reminderComposer.command("reminder", async (ctx) => {
   const userId = ctx.update.message?.from.id!;
@@ -26,6 +25,7 @@ reminderComposer.callbackQuery(/^reminder:/, async (ctx) => {
 reminderComposer.on("message:text", async (ctx,next) => {
   if(ctx.update.message.text.startsWith("/")){
     next()
+    return;
   }
   const userId = ctx.update.message?.from.id!;
   let interaction = userInteraction.get(userId);
@@ -34,6 +34,8 @@ reminderComposer.on("message:text", async (ctx,next) => {
     if (interaction.isFinished()) {
       userInteraction.delete(userId);
     }
+  }else{
+    await next()
   }
 });
 

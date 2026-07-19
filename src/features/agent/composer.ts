@@ -1,67 +1,44 @@
 import { Composer } from "grammy";
-import { openRouter } from "../../lib/llm";
+import { AgentInteraction } from "./handlers";
+import { userInteraction } from "../../lib/userInteraction";
 
 const agentComposer = new Composer();
 
 agentComposer.command("agent", async (ctx) => {
-  const text = ctx.match;
+  const userId = ctx.update.message?.from.id!;
+  const interaction = new AgentInteraction();
 
-  if (!text) {
-    await ctx.reply(
-      "\u{1F916} <b>Agent Command</b>\n\n" +
-        "Usage: <code>/agent " +
-        esc("lt") +
-        "your prompt" +
-        esc("gt") +
-        "</code>\n\n" +
-        "Example: <code>/agent What is the weather today?</code>",
-      { parse_mode: "HTML" },
-    );
-    return;
-  }
+  userInteraction.set(userId, interaction);
+  await interaction.initialise(ctx);
+});
 
-  const reply = await ctx.reply("\u{1F916} <b>Agent</b> is thinking...", {
-    parse_mode: "HTML",
-  });
+agentComposer.callbackQuery(/^agent:/, async (ctx) => {
+  const userId = ctx.update.callback_query?.from.id!;
+  const interaction = userInteraction.get(userId);
 
-  try {
-    const response = await openRouter.chat([
-      {
-        role: "system",
-        content:
-          "You are a helpful assistant. Answer the user's query concisely and accurately.",
-      },
-      { role: "user", content: text },
-    ]);
-
-    await ctx.api.editMessageText(
-      ctx.chat!.id,
-      reply.message_id,
-      "\u{1F916} <b>Agent</b>\n\n" + escapeHtml(response),
-      { parse_mode: "HTML" },
-    );
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    await ctx.api.editMessageText(
-      ctx.chat!.id,
-      reply.message_id,
-      "\u{1F916} <b>Agent</b>\n\n\u{274C} Error: " + escapeHtml(errorMessage),
-      { parse_mode: "HTML" },
-    );
+  if (interaction?.type === "agent") {
+    await interaction.handle(ctx);
+    if (interaction.isFinished()) {
+      userInteraction.delete(userId);
+    }
   }
 });
 
-function esc(name: string): string {
-  return "&" + name + ";";
-}
+agentComposer.on("message:text", async (ctx, next) => {
+  if (ctx.update.message.text.startsWith("/")) {
+    next();
+    return;
+  }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, esc("amp"))
-    .replace(/</g, esc("lt"))
-    .replace(/>/g, esc("gt"));
-}
+  const userId = ctx.update.message?.from.id!;
+  const interaction = userInteraction.get(userId);
+
+  if (interaction?.type === "agent") {
+    await interaction.handle(ctx);
+    if (interaction.isFinished()) {
+      userInteraction.delete(userId);
+    }
+  }
+});
 
 export default agentComposer;

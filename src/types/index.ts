@@ -5,4 +5,5 @@ export abstract class Interaction{
     data:any
     abstract initialise(context:Context):void
     abstract handle(context:Context):void
+    abstract isFinished():boolean
 }

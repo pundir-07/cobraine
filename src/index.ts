@@ -5,16 +5,25 @@ import agentComposer from "./features/agent/composer";
 import { connectRedis } from "./lib/redis";
 dotenv.config();
 
-
 async function main() {
-	await connectRedis();
-	const bot = new Bot(process.env.BOT_TOKEN!);
-	bot.use(reminderComposer)
-	bot.use(agentComposer)
-	await bot.start();
+    await connectRedis();
+    const bot = new Bot(process.env.BOT_TOKEN!);
+    await bot.api.setMyCommands([
+        {
+            command: "agent",
+            description: "Ask the AI assistant",
+        },
+        {
+            command: "reminder",
+            description: "Create a new reminder",
+        },
+    ]);
+    bot.use(reminderComposer);
+    bot.use(agentComposer);
+    await bot.start();
 }
 
 main().catch((err) => {
-	console.error('Failed to start bot:', err);
-	process.exit(1);
+    console.error("Failed to start bot:", err);
+    process.exit(1);
 });
