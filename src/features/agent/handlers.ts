@@ -2,6 +2,7 @@ import { Context, InlineKeyboard } from "grammy";
 import { Interaction } from "../../types";
 import { openRouter } from "../../lib/llm";
 import { AgentCallbackQuery, AgentData } from "./types";
+import { buildChatContext, ensureUser, saveMessage } from "./service";
 
 export class AgentInteraction extends Interaction {
   data: AgentData = { chatId: 0, uiMessageId: 0 };
@@ -16,6 +17,15 @@ export class AgentInteraction extends Interaction {
 
     const text =
       (ctx.match as string | undefined) ?? ctx.message?.text;
+    const userId = ctx.from?.id;
+    const chatId = ctx.chat?.id;
+    const username = ctx.from?.username;
+    const firstName = ctx.from?.first_name;
+    const lastName = ctx.from?.last_name;
+
+    if (!userId || !chatId) return;
+
+    await ensureUser(userId, username, firstName, lastName);
 
     if (!text) {
       const response = await ctx.reply(
@@ -38,7 +48,7 @@ export class AgentInteraction extends Interaction {
       return;
     }
 
-    await this.respondToPrompt(ctx, text);
+    await this.respondToPrompt(ctx, text, userId, chatId);
   }
 
   async handle(ctx: Context) {
@@ -71,28 +81,33 @@ export class AgentInteraction extends Interaction {
   private async handleTextMessage(ctx: Context) {
     const message = ctx.update.message;
     const text = message?.text?.trim();
+    const userId = ctx.from?.id;
+    const chatId = ctx.chat?.id;
 
-    if (!text) return;
+    if (!text || !userId || !chatId) return;
 
-    // await this.deleteUserMessage(ctx);
-    await this.respondToPrompt(ctx, text);
+    await this.respondToPrompt(ctx, text, userId, chatId);
   }
 
-  private async respondToPrompt(ctx: Context, prompt: string) {
+  private async respondToPrompt(
+    ctx: Context,
+    prompt: string,
+    userId: number,
+    chatId: number,
+  ) {
     const thinkingMsg = await ctx.reply(
       "\u{1F916} <b>Agent</b> is thinking...",
       { parse_mode: "HTML" },
     );
 
     try {
-      const response = await openRouter.chat([
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant. Answer the user's query concisely and accurately.",
-        },
-        { role: "user", content: prompt },
-      ]);
+      await saveMessage(userId, chatId, "user", prompt);
+
+      const messages = await buildChatContext(userId, chatId, prompt);
+
+      const response = await openRouter.chat(messages);
+
+      await saveMessage(userId, chatId, "assistant", response);
 
       await ctx.api.editMessageText(
         thinkingMsg.chat.id,

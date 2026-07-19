@@ -12,4 +12,9 @@ export const config = {
     baseUrl: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434",
     embeddingModel: process.env.OLLAMA_EMBEDDING_MODEL ?? "nomic-embed-text",
   },
+  postgres: {
+    connectionString:
+      process.env.DATABASE_URL ,
+    maxPool: 20,
+  },
 } as const;
