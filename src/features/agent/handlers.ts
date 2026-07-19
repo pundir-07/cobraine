@@ -112,7 +112,7 @@ export class AgentInteraction extends Interaction {
       await ctx.api.editMessageText(
         thinkingMsg.chat.id,
         thinkingMsg.message_id,
-        "\u{1F916} <b>Agent</b>\n\n" + escapeHtml(response),
+        "\u{1F916} <b>Agent</b>\n\n" + response,
         {
           parse_mode: "HTML",
         },
