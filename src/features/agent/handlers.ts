@@ -38,7 +38,6 @@ export class AgentInteraction extends Interaction {
       return;
     }
 
-    await this.deleteUserMessage(ctx);
     await this.respondToPrompt(ctx, text);
   }
 
@@ -101,10 +100,6 @@ export class AgentInteraction extends Interaction {
         "\u{1F916} <b>Agent</b>\n\n" + escapeHtml(response),
         {
           parse_mode: "HTML",
-          reply_markup: new InlineKeyboard().text(
-            "\u{274C} Close",
-            "agent:close",
-          ),
         },
       );
     } catch (error) {
