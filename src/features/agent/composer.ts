@@ -26,19 +26,25 @@ agentComposer.callbackQuery(/^agent:/, async (ctx) => {
 
 agentComposer.on("message:text", async (ctx, next) => {
   if (ctx.update.message.text.startsWith("/")) {
-    next();
+    await next();
     return;
   }
 
   const userId = ctx.update.message?.from.id!;
-  const interaction = userInteraction.get(userId);
+  let interaction = userInteraction.get(userId);
 
   if (interaction?.type === "agent") {
     await interaction.handle(ctx);
     if (interaction.isFinished()) {
       userInteraction.delete(userId);
     }
+    return;
   }
+
+  // No active interaction — auto-start agent
+  interaction = new AgentInteraction();
+  userInteraction.set(userId, interaction);
+  await interaction.initialise(ctx);
 });
 
 export default agentComposer;

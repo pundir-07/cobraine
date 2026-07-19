@@ -1,5 +1,6 @@
-import { Bot, Composer, Context } from "grammy";
+import { Bot } from "grammy";
 import dotenv from "dotenv";
+import startComposer from "./features/start/composer";
 import reminderComposer from "./features/reminders/composer";
 import agentComposer from "./features/agent/composer";
 import { connectRedis } from "./lib/redis";
@@ -10,14 +11,15 @@ async function main() {
     const bot = new Bot(process.env.BOT_TOKEN!);
     await bot.api.setMyCommands([
         {
-            command: "agent",
-            description: "Ask the AI assistant",
+            command: "start",
+            description: "Welcome to Cobraine",
         },
         {
             command: "reminder",
             description: "Create a new reminder",
         },
     ]);
+    bot.use(startComposer);
     bot.use(reminderComposer);
     bot.use(agentComposer);
     await bot.start();

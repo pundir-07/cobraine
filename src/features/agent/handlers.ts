@@ -14,7 +14,8 @@ export class AgentInteraction extends Interaction {
   async initialise(ctx: Context) {
     this.finished = false;
 
-    const text = ctx.match as string | undefined;
+    const text =
+      (ctx.match as string | undefined) ?? ctx.message?.text;
 
     if (!text) {
       const response = await ctx.reply(
@@ -37,6 +38,7 @@ export class AgentInteraction extends Interaction {
       return;
     }
 
+    await this.deleteUserMessage(ctx);
     await this.respondToPrompt(ctx, text);
   }
 
