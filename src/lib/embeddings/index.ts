@@ -1,0 +1,1 @@
+export { OllamaEmbedding, ollamaEmbedding } from "./ollama";
