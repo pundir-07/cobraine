@@ -1,4 +1,5 @@
 import { pool } from "../../lib/postgres";
+import { SYSTEM_PROMPT } from "./prompt";
 
 interface MessageRecord {
   id: string;
@@ -13,19 +14,6 @@ interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
-
-const AMP = "&";
-const LT = "<";
-const GT = ">";
-
-const SYSTEM_PROMPT =
-  "You are a helpful assistant. Answer the user's query concisely and accurately. " +
-  "Format your responses using Telegram HTML parse_mode markup, instead of standard markup. " +
-  "Use <b> for bold, <i> for italic, <code> for inline code, <pre> for code blocks, " +
-  "and <u> for underline. " +
-  `Escape literal HTML characters: ${AMP} -> ${AMP}amp;, < -> ${LT}, > -> ${GT}. ` +
-  "Do NOT wrap your entire response in a single <b> or <i> tag. " +
-  "Use line breaks (\\n) for paragraph separation.";
 
 const MAX_HISTORY_MESSAGES = 20;
 

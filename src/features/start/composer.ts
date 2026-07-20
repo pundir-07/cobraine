@@ -9,7 +9,7 @@ startComposer.command("start", async (ctx) => {
       "",
       "Hey! I'm <b>Cobraine</b> \u2014 your second brain, powered by AI.",
       "",
-      "Just send me a message and I'll help you out. No commands needed.",
+      "Just send me a message and I'll help you out. Or use the commands listed below.",
       "",
       "<b>Available commands:</b>",
       "/reminder \u2014 Set reminders and never miss a thing",

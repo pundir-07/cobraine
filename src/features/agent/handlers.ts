@@ -16,7 +16,7 @@ export class AgentInteraction extends Interaction {
     this.finished = false;
 
     const text =
-      (ctx.match as string | undefined) ?? ctx.message?.text;
+      (ctx.match as string) ?? ctx.message?.text;
     const userId = ctx.from?.id;
     const chatId = ctx.chat?.id;
     const username = ctx.from?.username;
@@ -26,27 +26,6 @@ export class AgentInteraction extends Interaction {
     if (!userId || !chatId) return;
 
     await ensureUser(userId, username, firstName, lastName);
-
-    if (!text) {
-      const response = await ctx.reply(
-        "\u{1F916} <b>Agent</b>\n\n" +
-          "Send me a prompt and I'll answer it using AI.\n\n" +
-          "Usage: <code>/agent " +
-          esc("lt") +
-          "your prompt" +
-          esc("gt") +
-          "</code>\n\n" +
-          "Or just keep typing messages and I'll respond to each one.\n" +
-          "Tap <b>Close</b> below to end the session.",
-        {
-          reply_markup: new InlineKeyboard().text("\u{274C} Close", "agent:close"),
-          parse_mode: "HTML",
-        },
-      );
-
-      this.data = { chatId: response.chat.id, uiMessageId: response.message_id };
-      return;
-    }
 
     await this.respondToPrompt(ctx, text, userId, chatId);
   }
