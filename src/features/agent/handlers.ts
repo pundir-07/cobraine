@@ -3,9 +3,11 @@ import { Interaction } from "../../types";
 import { openRouter } from "../../lib/llm";
 import { AgentCallbackQuery, AgentData } from "./types";
 import { buildChatContext, ensureUser, saveMessage } from "./service";
+import { getToolByName, type LlmResponse } from "./tools";
 
 export class AgentInteraction extends Interaction {
   data: AgentData = { chatId: 0, uiMessageId: 0 };
+  private userUuid: string = "";
   private finished = false;
 
   constructor() {
@@ -17,17 +19,16 @@ export class AgentInteraction extends Interaction {
 
     const text =
       (ctx.match as string) ?? ctx.message?.text;
-    const userId = ctx.from?.id;
+    const telegramId = ctx.from?.id;
     const chatId = ctx.chat?.id;
     const username = ctx.from?.username;
     const firstName = ctx.from?.first_name;
-    const lastName = ctx.from?.last_name;
 
-    if (!userId || !chatId) return;
+    if (!telegramId || !chatId) return;
 
-    await ensureUser(userId, username, firstName, lastName);
+    this.userUuid = await ensureUser(telegramId, username, firstName);
 
-    await this.respondToPrompt(ctx, text, userId, chatId);
+    await this.respondToPrompt(ctx, text, telegramId, chatId);
   }
 
   async handle(ctx: Context) {
@@ -60,18 +61,18 @@ export class AgentInteraction extends Interaction {
   private async handleTextMessage(ctx: Context) {
     const message = ctx.update.message;
     const text = message?.text?.trim();
-    const userId = ctx.from?.id;
+    const telegramId = ctx.from?.id;
     const chatId = ctx.chat?.id;
 
-    if (!text || !userId || !chatId) return;
+    if (!text || !telegramId || !chatId) return;
 
-    await this.respondToPrompt(ctx, text, userId, chatId);
+    await this.respondToPrompt(ctx, text, telegramId, chatId);
   }
 
   private async respondToPrompt(
     ctx: Context,
     prompt: string,
-    userId: number,
+    telegramId: number,
     chatId: number,
   ) {
     const thinkingMsg = await ctx.reply(
@@ -80,18 +81,41 @@ export class AgentInteraction extends Interaction {
     );
 
     try {
-      await saveMessage(userId, chatId, "user", prompt);
+      await saveMessage(this.userUuid, chatId, "user", prompt);
 
-      const messages = await buildChatContext(userId, chatId, prompt);
+      const messages = await buildChatContext(this.userUuid, chatId, prompt);
 
-      const response = await openRouter.chat(messages);
+      const rawResponse = await openRouter.chat(messages, {
+        responseFormat: "json",
+      });
 
-      await saveMessage(userId, chatId, "assistant", response);
+      const parsed: LlmResponse = JSON.parse(rawResponse);
+
+      let finalContent: string;
+
+      if (parsed.type === "tool_call") {
+        const tool = getToolByName(parsed.tool);
+
+        if (!tool) {
+          finalContent = `I tried to use a tool called "${parsed.tool}" but it doesn't exist.`;
+        } else {
+          const result = await tool.execute(
+            parsed.arguments,
+            telegramId,
+            chatId,
+          );
+          finalContent = result;
+        }
+      } else {
+        finalContent = parsed.content;
+      }
+
+      await saveMessage(this.userUuid, chatId, "assistant", finalContent);
 
       await ctx.api.editMessageText(
         thinkingMsg.chat.id,
         thinkingMsg.message_id,
-        "\u{1F916} <b>Agent</b>\n\n" + response,
+        "\u{1F916} <b>Agent</b>\n\n" + finalContent,
         {
           parse_mode: "HTML",
         },

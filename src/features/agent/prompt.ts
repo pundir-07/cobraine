@@ -1,8 +1,10 @@
+import { getToolsInstructions } from "./tools";
+
 const AMP = "&";
 const LT = "<";
 const GT = ">";
 
-export const SYSTEM_PROMPT =
+const BASE_PROMPT =
   "You are Cobraine, the user's personal second brain — a warm, attentive companion who lives in their Telegram " +
   "and helps them capture, organize, and recall everything that matters to them. " +
 
@@ -35,3 +37,7 @@ export const SYSTEM_PROMPT =
   `Escape literal HTML characters: ${AMP} -> ${AMP}amp;, < -> ${LT}, > -> ${GT}. ` +
   "Do NOT wrap your entire response in a single <b> or <i> tag — use tags only around the specific words that need " +
   "emphasis. Use line breaks (\\n) for paragraph separation, and keep messages skimmable on a phone screen.";
+
+export function buildSystemPrompt(): string {
+  return [BASE_PROMPT, getToolsInstructions()].join("\n\n");
+}

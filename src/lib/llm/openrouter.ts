@@ -23,6 +23,7 @@ interface ChatOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  responseFormat?: "text" | "json";
 }
 
 export class OpenRouterLLM {
@@ -53,6 +54,9 @@ export class OpenRouterLLM {
           messages,
           temperature: options?.temperature ?? 0.7,
           max_tokens: options?.maxTokens ?? 1024,
+          ...(options?.responseFormat === "json"
+            ? { response_format: { type: "json_object" } }
+            : {}),
         }),
       },
     );

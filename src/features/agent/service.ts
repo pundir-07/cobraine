@@ -1,11 +1,11 @@
 import { pool } from "../../lib/postgres";
-import { SYSTEM_PROMPT } from "./prompt";
+import { buildSystemPrompt } from "./prompt";
 
 interface MessageRecord {
   id: string;
-  user_id: number;
-  chat_id: number;
-  role: "user" | "assistant" | "system";
+  user_id: string;
+  telegram_chat_id: number;
+  role: "user" | "assistant";
   content: string;
   created_at: Date;
 }
@@ -17,65 +17,68 @@ interface ChatMessage {
 
 const MAX_HISTORY_MESSAGES = 20;
 
+/**
+ * Upserts a user by telegram_id and returns the user's UUID.
+ */
 export async function ensureUser(
   telegramId: number,
   username?: string,
   firstName?: string,
-  lastName?: string,
-): Promise<void> {
-  await pool.query(
-    `INSERT INTO users (telegram_id, username, first_name, last_name)
-     VALUES ($1, $2, $3, $4)
+): Promise<string> {
+  const result = await pool.query<{ id: string }>(
+    `INSERT INTO users (telegram_id, username, first_name)
+     VALUES ($1, $2, $3)
      ON CONFLICT (telegram_id)
      DO UPDATE SET
        username = COALESCE($2, users.username),
        first_name = COALESCE($3, users.first_name),
-       last_name = COALESCE($4, users.last_name),
-       updated_at = now()`,
-    [telegramId, username ?? null, firstName ?? null, lastName ?? null],
+       updated_at = now()
+     RETURNING id`,
+    [telegramId, username ?? null, firstName ?? null],
   );
+
+  return result.rows[0].id;
 }
 
 export async function saveMessage(
-  userId: number,
-  chatId: number,
-  role: "user" | "assistant" | "system",
+  userUuid: string,
+  telegramChatId: number,
+  role: "user" | "assistant",
   content: string,
 ): Promise<void> {
   await pool.query(
-    `INSERT INTO messages (user_id, chat_id, role, content)
+    `INSERT INTO chat_messages (user_id, telegram_chat_id, role, content)
      VALUES ($1, $2, $3, $4)`,
-    [userId, chatId, role, content],
+    [userUuid, telegramChatId, role, content],
   );
 }
 
 export async function getConversationHistory(
-  userId: number,
-  chatId: number,
+  userUuid: string,
+  telegramChatId: number,
   limit: number = MAX_HISTORY_MESSAGES,
 ): Promise<MessageRecord[]> {
   const result = await pool.query<MessageRecord>(
-    `SELECT * FROM messages
-     WHERE user_id = $1 AND chat_id = $2
+    `SELECT * FROM chat_messages
+     WHERE user_id = $1 AND telegram_chat_id = $2
      ORDER BY created_at ASC
      LIMIT $3`,
-    [userId, chatId, limit],
+    [userUuid, telegramChatId, limit],
   );
 
   return result.rows;
 }
 
 export async function buildChatContext(
-  userId: number,
-  chatId: number,
+  userUuid: string,
+  telegramChatId: number,
   currentPrompt: string,
 ): Promise<ChatMessage[]> {
-  const history = await getConversationHistory(userId, chatId);
+  const history = await getConversationHistory(userUuid, telegramChatId);
 
   const messages: ChatMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: buildSystemPrompt() },
   ];
-  console.log('System prompt:',SYSTEM_PROMPT)
 
   for (const msg of history) {
     messages.push({ role: msg.role, content: msg.content });
