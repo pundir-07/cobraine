@@ -3,3 +3,5 @@ node_modules
 *.md
 dev
 .redis/data/
+anyone.mjs
+anyone.py
