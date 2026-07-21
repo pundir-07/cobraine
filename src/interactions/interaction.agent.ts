@@ -4,7 +4,6 @@ import { openRouter } from "../lib/llm";
 import { AgentCallbackQuery, AgentData } from "../types/types.agent";
 import { MessageService } from "../services/service.message";
 import { UserService } from "../services/service.user";
-import { getToolByName, parseToolCallXml } from "../features/agent/tools";
 import { OpenRouterAgentService } from "../services/service.agent";
 
 export class AgentInteraction extends Interaction {
