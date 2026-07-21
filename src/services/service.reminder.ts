@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { Queue } from "bullmq";
 import { connectRedis } from "../lib/redis";
+import { pool } from "../lib/postgres";
 import { CreateReminderInput, ReminderRecord } from "../types/types.reminder";
 import { parseDate, parseTime } from "../utils/utils.reminder";
 
 /**
  * Service for managing reminders.
  * Handles creation, retrieval, listing, and cancellation of reminders,
- * as well as scheduling them in the Redis queue.
+ * as well as scheduling them in the BullMQ queue.
  */
 export class ReminderService {
     private static readonly REMINDER_KEY_PREFIX = "reminder:";
@@ -42,53 +43,75 @@ export class ReminderService {
 
     /**
      * Creates a new reminder and schedules it in the queue.
-     * Stores the reminder in Redis hash and adds user/chat index sets.
+     * Stores the reminder in PostgreSQL, then adds to Redis cache and queue.
      *
      * @param input - The reminder details (chatId, userId, title, remindAt)
      * @returns The created ReminderRecord
      */
     static async createReminder(input: CreateReminderInput): Promise<ReminderRecord | null> {
         const redis = await connectRedis();
-        const id = randomUUID();
         const now = new Date().toISOString();
-        const reminderKey = ReminderService.getReminderKey(id);
 
+        // 1. Ensure User exists in PostgreSQL
+        const userRes = await pool.query(`
+            INSERT INTO users (telegram_id)
+            VALUES ($1)
+            ON CONFLICT (telegram_id) DO UPDATE SET updated_at = now()
+            RETURNING id
+        `, [input.userId]);
+        const userUuid = userRes.rows[0].id;
+
+        // 2. Create Item in PostgreSQL (store chatId in metadata)
+        const itemRes = await pool.query(`
+            INSERT INTO items (user_id, type, title, metadata)
+            VALUES ($1, 'reminder', $2, $3)
+            RETURNING id
+        `, [userUuid, input.title, JSON.stringify({ chatId: input.chatId })]);
+        const itemId = itemRes.rows[0].id;
+
+        // 3. Create Reminder in PostgreSQL
+        const reminderRes = await pool.query(`
+            INSERT INTO reminders (item_id, remind_at, status)
+            VALUES ($1, $2, 'pending')
+            RETURNING id, created_at
+        `, [itemId, input.remindAt.toISOString()]);
+        const reminderId = reminderRes.rows[0].id;
+        const createdAt = new Date(reminderRes.rows[0].created_at).toISOString();
+        
+        const reminderKey = ReminderService.getReminderKey(reminderId);
+
+        // 4. Update Redis cache
         await redis
             .multi()
             .hSet(reminderKey, {
-                id,
+                id: reminderId,
                 chatId: String(input.chatId),
                 userId: String(input.userId),
                 title: input.title,
                 remindAt: input.remindAt.toISOString(),
                 status: "scheduled",
                 attempts: "0",
-                createdAt: now,
-                updatedAt: now,
+                createdAt: createdAt,
+                updatedAt: createdAt,
             })
-            .sAdd(ReminderService.getUserRemindersKey(input.userId), id)
-            .sAdd(ReminderService.getChatRemindersKey(input.chatId), id)
+            .sAdd(ReminderService.getUserRemindersKey(input.userId), reminderId)
+            .sAdd(ReminderService.getChatRemindersKey(input.chatId), reminderId)
             .exec();
 
         await ReminderService.remindersQueue.add(
             "send-reminder",
-            { reminderId: id },
+            { reminderId: reminderId },
             {
-                jobId: id,
+                jobId: reminderId,
                 delay: Math.max(0, input.remindAt.getTime() - Date.now()),
             },
         );
 
-        return ReminderService.getReminder(id);
+        return ReminderService.getReminder(reminderId);
     }
 
     /**
      * Creates a reminder from string-based date/time inputs.
-     * This is the single entry point for the LLM tool — it reuses the same
-     * parseDate/parseTime utilities as the interactive /reminder command.
-     *
-     * @param input - Object containing chatId, userId, title, date string, and time string
-     * @returns A result object with either a success message and reminder, or an error message
      */
     static async createReminderFromStrings(
         input: {
@@ -155,50 +178,102 @@ export class ReminderService {
 
     /**
      * Lists all reminders for a given user, sorted by remindAt time.
-     *
-     * @param userId - The Telegram user ID
-     * @returns Array of ReminderRecord objects, sorted by scheduled time
+     * Fetches from Postgres to ensure accuracy, then relies on Redis cache for details.
      */
     static async listUserReminders(userId: number): Promise<ReminderRecord[]> {
-        const redis = await connectRedis();
-        const ids = await redis.sMembers(ReminderService.getUserRemindersKey(userId));
+        const query = `
+            SELECT r.id
+            FROM reminders r
+            JOIN items i ON r.item_id = i.id
+            JOIN users u ON i.user_id = u.id
+            WHERE u.telegram_id = $1
+            ORDER BY r.remind_at ASC
+        `;
+        const res = await pool.query(query, [userId]);
+        const ids = res.rows.map((row) => row.id);
+
         const reminders = await Promise.all(ids.map((id) => ReminderService.getReminder(id)));
 
-        return reminders
-            .filter((reminder): reminder is ReminderRecord => reminder !== null)
-            .sort(
-                (left, right) =>
-                    new Date(left.remindAt).getTime() -
-                    new Date(right.remindAt).getTime(),
-            );
+        return reminders.filter((reminder): reminder is ReminderRecord => reminder !== null);
     }
 
     /** 
      * Retrieves a single reminder by its ID.
-     *
-     * @param id - The unique reminder ID
-     * @returns The ReminderRecord if found, null otherwise
+     * Uses Cache-Aside pattern: checks Redis first, then Postgres.
      */
     static async getReminder(id: string): Promise<ReminderRecord | null> {
         const redis = await connectRedis();
-        const reminder = await redis.hGetAll(ReminderService.getReminderKey(id));
+        const cachedReminder = await redis.hGetAll(ReminderService.getReminderKey(id));
 
-        if (!reminder.id) {
+        if (cachedReminder && cachedReminder.id) {
+            return cachedReminder as ReminderRecord;
+        }
+
+        // Cache miss: Fetch from PostgreSQL
+        const query = `
+            SELECT 
+                r.id, 
+                i.title, 
+                i.metadata->>'chatId' as chat_id,
+                r.remind_at, 
+                r.status, 
+                r.created_at, 
+                r.sent_at, 
+                r.failure_reason,
+                u.telegram_id as user_id
+            FROM reminders r
+            JOIN items i ON r.item_id = i.id
+            JOIN users u ON i.user_id = u.id
+            WHERE r.id = $1
+        `;
+        const res = await pool.query(query, [id]);
+        if (res.rows.length === 0) {
             return null;
         }
 
-        return reminder as ReminderRecord;
+        const row = res.rows[0];
+        const record: ReminderRecord = {
+            id: row.id,
+            chatId: row.chat_id || row.user_id,
+            userId: row.user_id,
+            title: row.title,
+            remindAt: new Date(row.remind_at).toISOString(),
+            status: row.status === 'pending' ? 'scheduled' : row.status, 
+            attempts: "0",
+            createdAt: new Date(row.created_at).toISOString(),
+            updatedAt: new Date(row.created_at).toISOString(),
+        };
+        
+        if (row.sent_at) {
+            record.completedAt = new Date(row.sent_at).toISOString();
+        }
+        if (row.failure_reason) {
+            record.failureReason = row.failure_reason;
+        }
+
+        // Populate Redis cache
+        const recordToSave = { ...record };
+        // Clean undefined values before saving to Redis hash
+        Object.keys(recordToSave).forEach(key => {
+            if (recordToSave[key as keyof ReminderRecord] === undefined) {
+                delete recordToSave[key as keyof ReminderRecord];
+            }
+        });
+
+        await redis.hSet(ReminderService.getReminderKey(id), recordToSave);
+
+        return record;
     }
 
     /**
      * Cancels a scheduled reminder.
-     * Updates the status to "cancelled" in Redis and removes the job from the queue.
-     *
-     * @param id - The unique reminder ID to cancel
+     * Updates the status to "cancelled" in Postgres and Redis, and removes the job.
      */
     static async cancelReminder(id: string): Promise<void> {
         const redis = await connectRedis();
         const now = new Date().toISOString();
+
+        await pool.query(`UPDATE reminders SET status = 'cancelled' WHERE id = $1`, [id]);
 
         await Promise.all([
             redis

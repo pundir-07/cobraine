@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { Bot } from "grammy";
 import dotenv from "dotenv";
 import { connectRedis } from "../lib/redis";
+import { pool } from "../lib/postgres";
 import { ReminderService } from "../services/service.reminder"
 import { escapeHtml } from "../utils/utils.reminder";
 
@@ -19,6 +20,7 @@ async function main() {
             const client = await connectRedis();
             const now = new Date().toISOString();
 
+            // Only update execution timestamps in Redis
             await client.hSet(getReminderKey(reminderId), {
                 status: "processing",
                 processingStartedAt: now,
@@ -58,6 +60,10 @@ async function main() {
         const client = await connectRedis();
         const now = new Date().toISOString();
 
+        // Update Postgres
+        await pool.query(`UPDATE reminders SET status = 'completed', sent_at = now() WHERE id = $1`, [reminderId]);
+
+        // Update Redis cache
         await client.hSet(getReminderKey(reminderId), {
             status: "completed",
             completedAt: now,
@@ -73,6 +79,9 @@ async function main() {
         const now = new Date().toISOString();
 
         if (job.attemptsMade >= (job.opts.attempts ?? 3)) {
+            // Final failure: Update Postgres
+            await pool.query(`UPDATE reminders SET status = 'failed', failure_reason = $1 WHERE id = $2`, [error.message, reminderId]);
+
             await client.hSet(getReminderKey(reminderId), {
                 status: "failed",
                 failedAt: now,
@@ -80,6 +89,7 @@ async function main() {
                 updatedAt: now,
             });
         } else {
+            // Transient failure: Only update Redis
             await client.hSet(getReminderKey(reminderId), {
                 status: "scheduled",
                 failureReason: error.message,
