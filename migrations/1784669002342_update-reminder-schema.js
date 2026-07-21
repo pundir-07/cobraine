@@ -22,7 +22,7 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
     pgm.sql(`
-        ALTER TABLE reminders DROP COLUMN IF NOT EXISTS failure_reason;
+        ALTER TABLE reminders DROP COLUMN IF EXISTS failure_reason;
         -- Note: Postgres does not support removing values from an ENUM type easily.
     `);
 };

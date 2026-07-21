@@ -1,9 +1,10 @@
-import { ToolDefinition } from "./types";
+import { ToolDefinition } from "../../../types/types.tools";
 import { setReminderTool, listRemindersTool } from "./reminder";
 
 function ESC(name: string): string {
   return "&" + name + ";";
 }
+
 
 export function getToolByName(name: string): ToolDefinition | undefined {
   return AVAILABLE_TOOLS.find((t) => t.name === name);
@@ -96,4 +97,4 @@ export function getToolsInstructions(): string {
   ].join("\n");
 }
 
-export { ToolDefinition, ToolParameter, } from "./types";
+export { ToolDefinition, ToolParameter, } from "../../../types/types.tools";

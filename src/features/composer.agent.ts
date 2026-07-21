@@ -1,6 +1,6 @@
 import { Composer } from "grammy";
-import { AgentInteraction } from "../../interactions/interaction.agent";
-import { userInteraction } from "../../lib/userInteraction";
+import { AgentInteraction } from "../interactions/interaction.agent";
+import { userInteraction } from "../lib/userInteraction";
 
 const agentComposer = new Composer();
 

@@ -1,8 +1,8 @@
 import { Bot } from "grammy";
 import dotenv from "dotenv";
-import startComposer from "./features/start/composer";
-import reminderComposer from "./features/reminders/composer";
-import agentComposer from "./features/agent/composer";
+import startComposer from "./features/composer.start";
+import reminderComposer from "./features/composer.reminder";
+import agentComposer from "./features/composer.agent";
 import { connectRedis, disconnectRedis } from "./lib/redis";
 import { connectPostgres, closePostgres } from "./lib/postgres";
 dotenv.config();

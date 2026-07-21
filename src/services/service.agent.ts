@@ -1,8 +1,8 @@
-import { buildSystemPrompt } from "../features/agent/prompt";
+import { buildSystemPrompt } from "../lib/llm/prompt";
 import { ChatMessage } from "../types/types.message";
 import { MessageService } from "./service.message";
 import { config } from "../config";
-import { getToolByName } from "../features/agent/tools";
+import { getToolByName } from "../lib/llm/tools";
 
 interface ChatCompletionResponse {
     id: string;

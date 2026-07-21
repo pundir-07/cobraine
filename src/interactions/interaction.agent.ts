@@ -1,6 +1,5 @@
 import { Context, InlineKeyboard } from "grammy";
 import { Interaction } from "../types";
-import { openRouter } from "../lib/llm";
 import { AgentCallbackQuery, AgentData } from "../types/types.agent";
 import { MessageService } from "../services/service.message";
 import { UserService } from "../services/service.user";
@@ -84,10 +83,10 @@ export class AgentInteraction extends Interaction {
         try {
             await MessageService.saveMessage(this.userUuid, chatId, "user", prompt);
             console.log("SENDING PROMPT:", prompt)
-            const response = await OpenRouterAgentService.continueUserChat(this.userUuid, telegramId,chatId, prompt)
+            const response = await OpenRouterAgentService.continueUserChat(this.userUuid, telegramId, chatId, prompt)
 
 
-            
+
             await MessageService.saveMessage(this.userUuid, chatId, "assistant", response);
 
             await ctx.api.editMessageText(

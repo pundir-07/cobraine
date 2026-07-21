@@ -1,6 +1,6 @@
 import { Composer } from "grammy";
-import { ReminderInteraction } from "../../interactions/interaction.reminder";
-import { userInteraction } from "../../lib/userInteraction";
+import { ReminderInteraction } from "../interactions/interaction.reminder";
+import { userInteraction } from "../lib/userInteraction";
 const reminderComposer = new Composer();
 
 reminderComposer.command("reminder", async (ctx) => {
@@ -9,12 +9,12 @@ reminderComposer.command("reminder", async (ctx) => {
 
   userInteraction.set(userId, interaction);
   await interaction.initialise(ctx);
-  
+
 });
 reminderComposer.callbackQuery(/^reminder:/, async (ctx) => {
   const userId = ctx.update.callback_query?.from.id!;
   let interaction = userInteraction.get(userId);
-  if(interaction?.type=="reminder"){
+  if (interaction?.type == "reminder") {
     await interaction.handle(ctx);
     if (interaction.isFinished()) {
       userInteraction.delete(userId);
@@ -22,8 +22,8 @@ reminderComposer.callbackQuery(/^reminder:/, async (ctx) => {
   }
 });
 
-reminderComposer.on("message:text", async (ctx,next) => {
-  if(ctx.update.message.text.startsWith("/")){
+reminderComposer.on("message:text", async (ctx, next) => {
+  if (ctx.update.message.text.startsWith("/")) {
     next()
     return;
   }
@@ -34,7 +34,7 @@ reminderComposer.on("message:text", async (ctx,next) => {
     if (interaction.isFinished()) {
       userInteraction.delete(userId);
     }
-  }else{
+  } else {
     await next()
   }
 });

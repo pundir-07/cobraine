@@ -1,4 +1,4 @@
-import { ToolDefinition } from "./types";
+import { ToolDefinition } from "../../../types/types.tools";
 import { ReminderService } from "../../../services/service.reminder";
 
 export const setReminderTool: ToolDefinition = {

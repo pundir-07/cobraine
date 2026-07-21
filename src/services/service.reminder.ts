@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Queue } from "bullmq";
 import { connectRedis } from "../lib/redis";
 import { pool } from "../lib/postgres";
@@ -77,7 +76,7 @@ export class ReminderService {
         `, [itemId, input.remindAt.toISOString()]);
         const reminderId = reminderRes.rows[0].id;
         const createdAt = new Date(reminderRes.rows[0].created_at).toISOString();
-        
+
         const reminderKey = ReminderService.getReminderKey(reminderId);
 
         // 4. Update Redis cache
@@ -238,12 +237,12 @@ export class ReminderService {
             userId: row.user_id,
             title: row.title,
             remindAt: new Date(row.remind_at).toISOString(),
-            status: row.status === 'pending' ? 'scheduled' : row.status, 
+            status: row.status === 'pending' ? 'scheduled' : row.status,
             attempts: "0",
             createdAt: new Date(row.created_at).toISOString(),
             updatedAt: new Date(row.created_at).toISOString(),
         };
-        
+
         if (row.sent_at) {
             record.completedAt = new Date(row.sent_at).toISOString();
         }
