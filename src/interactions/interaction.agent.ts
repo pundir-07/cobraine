@@ -85,57 +85,16 @@ export class AgentInteraction extends Interaction {
         try {
             await MessageService.saveMessage(this.userUuid, chatId, "user", prompt);
             console.log("SENDING PROMPT:", prompt)
-            const rawResponse = await OpenRouterAgentService.continueUserChat(this.userUuid, telegramId, prompt)
+            const response = await OpenRouterAgentService.continueUserChat(this.userUuid, telegramId,chatId, prompt)
 
-            const trimmed = rawResponse.trim();
-            let finalContent: string;
 
-            // The LLM must ALWAYS respond with <tool_call> XML.
-            // If it doesn't, wrap the response in a text_response tool call.
-            const xmlStart = trimmed.indexOf("<tool_call>");
-            const xmlEnd = trimmed.lastIndexOf("</tool_call>");
-
-            if (xmlStart !== -1 && xmlEnd !== -1) {
-                const xmlBlock = trimmed.slice(xmlStart, xmlEnd + "</tool_call>".length);
-                const parsed = parseToolCallXml(xmlBlock);
-
-                if (!parsed) {
-                    // Malformed XML — treat as text_response
-                    finalContent = trimmed;
-                } else {
-                    const tool = getToolByName(parsed.tool);
-
-                    if (!tool) {
-                        finalContent = trimmed;
-                    } else {
-                        const result = await tool.execute(
-                            parsed.arguments,
-                            telegramId,
-                            chatId,
-                        );
-                        finalContent = result;
-                    }
-                }
-            } else {
-                // No XML found — wrap everything as a text_response
-                const textTool = getToolByName("text_response");
-                if (textTool) {
-                    finalContent = await textTool.execute(
-                        { content: trimmed },
-                        telegramId,
-                        chatId,
-                    );
-                } else {
-                    finalContent = trimmed;
-                }
-            }
-
-            await MessageService.saveMessage(this.userUuid, chatId, "assistant", finalContent);
+            
+            await MessageService.saveMessage(this.userUuid, chatId, "assistant", response);
 
             await ctx.api.editMessageText(
                 thinkingMsg.chat.id,
                 thinkingMsg.message_id,
-                "\u{1F916} <b>Agent</b>\n\n" + finalContent,
+                "\u{1F916} <b>Agent</b>\n\n" + response,
                 {
                     parse_mode: "HTML",
                 },
