@@ -67,5 +67,5 @@ export const listRemindersTool: ToolDefinition = {
       return `Failed to list reminders: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
-  disabled; false
+  disabled: false
 };
