@@ -38,9 +38,11 @@ export const setReminderTool: ToolDefinition = {
     }
     return result.error;
   },
+  disabled: false
 };
 
 export const listRemindersTool: ToolDefinition = {
+
   name: "list_reminders",
   description: "List all currently scheduled reminders for the user.",
   parameters: [],
@@ -65,4 +67,5 @@ export const listRemindersTool: ToolDefinition = {
       return `Failed to list reminders: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
+  disabled; false
 };

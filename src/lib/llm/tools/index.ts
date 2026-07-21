@@ -1,5 +1,7 @@
+import { readdir } from "node:fs/promises";
 import { ToolDefinition } from "../../../types/types.tools";
 import { setReminderTool, listRemindersTool } from "./reminder";
+import path from "node:path";
 
 function ESC(name: string): string {
   return "&" + name + ";";
@@ -27,6 +29,7 @@ const textResponseTool: ToolDefinition = {
   async execute(args) {
     return String(args.content ?? "");
   },
+  disabled: false
 };
 
 export const AVAILABLE_TOOLS: ToolDefinition[] = [
@@ -34,7 +37,12 @@ export const AVAILABLE_TOOLS: ToolDefinition[] = [
   setReminderTool,
   listRemindersTool,
 ];
+export async function getAvailableTools() {
+  const toolFiles = await readdir(__dirname, {
+    withFileTypes: true
+  })
 
+}
 export function getToolsInstructions(): string {
   return [
     "MANDATORY TOOL CALLS — You MUST ALWAYS respond with an XML tool call.",
