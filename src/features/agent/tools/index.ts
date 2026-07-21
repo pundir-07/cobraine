@@ -96,4 +96,4 @@ export function getToolsInstructions(): string {
   ].join("\n");
 }
 
-export { ToolDefinition, ToolParameter, parseToolCallXml } from "./types";
+export { ToolDefinition, ToolParameter, } from "./types";
