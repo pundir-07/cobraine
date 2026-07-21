@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "worker:reminders": "tsx watch src/features/reminders/workers/worker.ts",
+    "worker:reminders": "tsx watch src/workers/worker.reminder.ts",
     "redis": "redis-server .redis/redis.conf",
     "redis:ping": "redis-cli -h 127.0.0.1 -p 6379 ping",
     "migrate:up": "node-pg-migrate up --migrations-dir ./migrations",

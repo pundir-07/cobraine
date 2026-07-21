@@ -1,5 +1,5 @@
 import { Composer } from "grammy";
-import { ReminderInteraction } from "./handlers";
+import { ReminderInteraction } from "../../interactions/interaction.reminder";
 import { userInteraction } from "../../lib/userInteraction";
 const reminderComposer = new Composer();
 

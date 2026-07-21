@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
 import { Bot } from "grammy";
 import dotenv from "dotenv";
-import { connectRedis } from "../../../lib/redis";
-import { getReminder } from "../service";
-import { escapeHtml } from "../utils";
+import { connectRedis } from "../lib/redis";
+import { ReminderService } from "../services/service.reminder"
+import { escapeHtml } from "../utils/utils.reminder";
 
 dotenv.config();
 
@@ -25,7 +25,7 @@ async function main() {
                 updatedAt: now,
             });
 
-            const reminder = await getReminder(reminderId);
+            const reminder = await ReminderService.getReminder(reminderId);
 
             if (!reminder) {
                 return;

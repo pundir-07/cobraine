@@ -1,13 +1,13 @@
 import { Context, InlineKeyboard } from "grammy";
-import { Interaction } from "../../types";
-import { createReminder, listUserReminders } from "./service";
+import { Interaction } from "../types";
+import {ReminderService} from "../services/service.reminder";
 import {
     ReminderCallBackQuery,
     ReminderDraft,
     ReminderInteractionPhase,
     ReminderPhase,
     ReminderRecord,
-} from "./types";
+} from "../types/types.reminder";
 import {
     escapeHtml,
     formatReminderDate,
@@ -17,7 +17,7 @@ import {
     getTomorrow,
     parseDate,
     parseTime,
-} from "./utils";
+} from "../utils/utils.reminder";
 
 export class ReminderInteraction extends Interaction {
     data: ReminderDraft = {};
@@ -197,7 +197,7 @@ export class ReminderInteraction extends Interaction {
             return;
         }
 
-        const reminder = await createReminder({
+        const reminder = await ReminderService.createReminder({
             chatId: this.chatId,
             userId,
             title: this.data.title,
@@ -217,7 +217,7 @@ export class ReminderInteraction extends Interaction {
 
         if (!userId) return;
 
-        const reminders = await listUserReminders(userId);
+        const reminders = await ReminderService.listUserReminders(userId);
         const activeReminders = reminders.filter(
             (reminder) =>
                 reminder.status === "scheduled" ||

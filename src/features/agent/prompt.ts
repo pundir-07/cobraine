@@ -39,5 +39,12 @@ const BASE_PROMPT =
   "emphasis. Use line breaks (\\n) for paragraph separation, and keep messages skimmable on a phone screen.";
 
 export function buildSystemPrompt(): string {
-  return [BASE_PROMPT, getToolsInstructions()].join("\n\n");
+  return [BASE_PROMPT, getToolsInstructions(),getEnvirontmentDetails()].join("\n\n");
+}
+
+function getEnvirontmentDetails(){
+  return `
+  You need to refer to these environment details to help the user.
+  The current User Time is: ${new Date().toString()}.
+  `
 }
