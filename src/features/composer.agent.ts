@@ -21,6 +21,7 @@ agentComposer.on("message:text", async (ctx, next) => {
     await next();
     return;
   }
+  console.log(ctx.update.message.from)
 
   const userId = ctx.update.message?.from.id!;
   let interaction = userInteraction.get(userId);

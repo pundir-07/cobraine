@@ -4,10 +4,12 @@ import { AgentCallbackQuery, AgentData } from "../types/types.agent";
 import { MessageService } from "../services/service.message";
 import { UserService } from "../services/service.user";
 import { OpenRouterAgentService } from "../services/service.agent";
+import { BotUser } from "@/types/types.user";
+import { User } from "../models/model.user";
 
 export class AgentInteraction extends Interaction {
     data: AgentData = { chatId: 0, uiMessageId: 0 };
-    private userUuid: string = "";
+    private user!: User;
     private finished = false;
 
     constructor() {
@@ -19,28 +21,30 @@ export class AgentInteraction extends Interaction {
 
         const text =
             (ctx.match as string) ?? ctx.message?.text;
-        const telegramId = ctx.from?.id;
+        const userTelegramId = ctx.from?.id;
         const chatId = ctx.chat?.id;
         const username = ctx.from?.username;
         const firstName = ctx.from?.first_name;
 
-        if (!telegramId || !chatId) return;
+        if (!userTelegramId || !chatId) return;
 
-        this.userUuid = await UserService.upsertUser(telegramId, username, firstName);
+        // Upsert returns a Domain User Object
+        this.user = await UserService.upsertUser(userTelegramId, username, firstName);
 
-        await this.respondToPrompt(ctx, text, telegramId, chatId);
+        await this.respondToPrompt(ctx, text, chatId);
     }
 
     async handle(ctx: Context) {
         if (this.finished) return;
 
-        if ("callback_query" in ctx.update) {
-            await this.handleCallbackQuery(ctx);
-            return;
-        }
+        // Agent handles message and callback query
+        const message = ctx.update.message;
+        const callbackQuery = ctx.update.callback_query;
 
-        if ("message" in ctx.update) {
+        if (message) {
             await this.handleTextMessage(ctx);
+        } else if (callbackQuery) {
+            await this.handleCallbackQuery(ctx);
         }
     }
 
@@ -49,30 +53,34 @@ export class AgentInteraction extends Interaction {
     }
 
     private async handleCallbackQuery(ctx: Context) {
-        await ctx.answerCallbackQuery();
+        const callbackQuery = ctx.update.callback_query;
+        const data = callbackQuery?.data as AgentCallbackQuery;
 
-        const callbackQuery = ctx.update.callback_query?.data as AgentCallbackQuery;
-
-        if (callbackQuery === "agent:close") {
-            await this.close(ctx);
+        if (!data) return;
+        switch (data) {
+            case "agent:close":
+                await this.close(ctx);
+                break;
+            default:
+                break;
         }
+
+        await ctx.answerCallbackQuery();
     }
 
     private async handleTextMessage(ctx: Context) {
         const message = ctx.update.message;
         const text = message?.text?.trim();
-        const telegramId = ctx.from?.id;
         const chatId = ctx.chat?.id;
 
-        if (!text || !telegramId || !chatId) return;
+        if (!text || !this.user || !chatId) return;
 
-        await this.respondToPrompt(ctx, text, telegramId, chatId);
+        await this.respondToPrompt(ctx, text, chatId);
     }
 
     private async respondToPrompt(
         ctx: Context,
         prompt: string,
-        telegramId: number,
         chatId: number,
     ) {
         const thinkingMsg = await ctx.reply(
@@ -81,13 +89,20 @@ export class AgentInteraction extends Interaction {
         );
 
         try {
-            await MessageService.saveMessage(this.userUuid, chatId, "user", prompt);
+            await MessageService.saveMessage(this.user.internalId, chatId, "user", prompt);
             console.log("SENDING PROMPT:", prompt)
-            const response = await OpenRouterAgentService.continueUserChat(this.userUuid, telegramId, chatId, prompt)
 
+            // Pass in Domain user info to OpenRouter!
+            const response = await OpenRouterAgentService.continueUserChat(
+                this.user.internalId,
+                this.user.telegramId,
+                chatId,
+                prompt,
+                // Passing some useful domain information to LLM
+                `User Name: ${this.user.fullName}\nLanguage: ${this.user.languageCode}`
+            )
 
-
-            await MessageService.saveMessage(this.userUuid, chatId, "assistant", response);
+            await MessageService.saveMessage(this.user.internalId, chatId, "assistant", response);
 
             await ctx.api.editMessageText(
                 thinkingMsg.chat.id,

@@ -1,4 +1,5 @@
 import { pool } from "../lib/postgres";
+import { User } from "../models/model.user";
 
 /**
  * User record as stored in the database.
@@ -19,20 +20,20 @@ export type UserRecord = {
  */
 export class UserService {
     /**
-     * Upserts a user by telegram_id and returns the user's UUID.
+     * Upserts a user by telegram_id and returns the user's Domain Entity.
      * If the user exists, updates username/firstName if provided.
      *
      * @param telegramId - The Telegram user ID
      * @param username - Optional username to set/update
      * @param firstName - Optional first name to set/update
-     * @returns The user's UUID
+     * @returns The User entity
      */
     static async upsertUser(
         telegramId: number,
         username?: string,
         firstName?: string,
-    ): Promise<string> {
-        const result = await pool.query<{ id: string }>(
+    ): Promise<User> {
+        const result = await pool.query<{ id: string, telegram_id: number, username: string | null, first_name: string | null, timezone: string, created_at: Date, updated_at: Date }>(
             `INSERT INTO users (telegram_id, username, first_name)
              VALUES ($1, $2, $3)
              ON CONFLICT (telegram_id)
@@ -40,20 +41,30 @@ export class UserService {
                username = COALESCE($2, users.username),
                first_name = COALESCE($3, users.first_name),
                updated_at = now()
-             RETURNING id`,
+             RETURNING *`,
             [telegramId, username ?? null, firstName ?? null],
         );
 
-        return result.rows[0].id;
+        const row = result.rows[0];
+        
+        return User.fromDatabase({
+            id: row.id,
+            telegramId: row.telegram_id,
+            username: row.username,
+            firstName: row.first_name,
+            timezone: row.timezone,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        });
     }
 
     /**
      * Retrieves a user by their Telegram ID.
      *
      * @param telegramId - The Telegram user ID
-     * @returns The UserRecord if found, null otherwise
+     * @returns The User entity if found, null otherwise
      */
-    static async getUserByTelegramId(telegramId: number): Promise<UserRecord | null> {
+    static async getUserByTelegramId(telegramId: number): Promise<User | null> {
         const result = await pool.query<UserRecord>(
             `SELECT id, telegram_id as "telegramId", username, first_name as "firstName", 
                     timezone, created_at as "createdAt", updated_at as "updatedAt"
@@ -62,16 +73,16 @@ export class UserService {
             [telegramId],
         );
 
-        return result.rows[0] ?? null;
+        return result.rows[0] ? User.fromDatabase(result.rows[0]) : null;
     }
 
     /**
      * Retrieves a user by their UUID.
      *
      * @param id - The user's UUID
-     * @returns The UserRecord if found, null otherwise
+     * @returns The User entity if found, null otherwise
      */
-    static async getUserById(id: string): Promise<UserRecord | null> {
+    static async getUserById(id: string): Promise<User | null> {
         const result = await pool.query<UserRecord>(
             `SELECT id, telegram_id as "telegramId", username, first_name as "firstName",
                     timezone, created_at as "createdAt", updated_at as "updatedAt"
@@ -80,7 +91,7 @@ export class UserService {
             [id],
         );
 
-        return result.rows[0] ?? null;
+        return result.rows[0] ? User.fromDatabase(result.rows[0]) : null;
     }
 
     /**

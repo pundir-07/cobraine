@@ -72,11 +72,13 @@ export class AgentService {
         telegramId: number,
         chatId: number,
         currentPrompt: string,
+        additional_metadata?: string
     ): Promise<string> {
         const messages = await this.buildChatContext(
             userUuid,
             telegramId,
             currentPrompt,
+            additional_metadata
         );
         const rawResponse = await this.chat(messages);
 
@@ -96,13 +98,13 @@ export class AgentService {
             const parsed = this.parseToolCallXml(xmlBlock);
 
             if (!parsed) {
-                // Malformed XML — treat as text_response
-                finalContent = trimmed;
+                // Malformed XML
+                finalContent = `<i>[Agent Error: Malformed XML]</i>\n\n<pre>${this.escapeHtml(trimmed)}</pre>`;
             } else {
                 const tool = toolsManager.getToolByName(parsed.tool);
 
                 if (!tool) {
-                    finalContent = trimmed;
+                    finalContent = `<i>[Agent Error: Unknown Tool '${parsed.tool}']</i>\n\n<pre>${this.escapeHtml(trimmed)}</pre>`;
                 } else {
                     const result = await tool.execute(
                         parsed.arguments,
@@ -122,16 +124,24 @@ export class AgentService {
                     chatId,
                 );
             } else {
-                finalContent = trimmed;
+                finalContent = this.escapeHtml(trimmed);
             }
         }
         return finalContent;
+    }
+
+    private escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
     }
 
     private async buildChatContext(
         userUuid: string,
         telegramChatId: number,
         currentPrompt: string,
+        additional_metadata?: string
     ): Promise<ChatMessage[]> {
         const history = await MessageService.getConversationHistory(
             userUuid,
@@ -141,11 +151,11 @@ export class AgentService {
         const toolsInstructions = toolsManager.getToolsInstructions();
 
         const messages: ChatMessage[] = [
-            { role: "system", content: buildSystemPrompt(toolsInstructions) },
+            { role: "system", content: `${buildSystemPrompt(toolsInstructions)}\n\nADDITIONAL METADATA:\n\n${additional_metadata} ` },
             ...history.map(msg => ({ role: msg.role, content: msg.content })),
             { role: "user", content: currentPrompt },
         ];
-
+        console.log("SystemPrompt: ", messages[0])
         return messages;
     }
     private parseToolCallXml(
