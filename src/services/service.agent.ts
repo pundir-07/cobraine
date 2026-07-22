@@ -155,7 +155,7 @@ export class AgentService {
             ...history.map(msg => ({ role: msg.role, content: msg.content })),
             { role: "user", content: currentPrompt },
         ];
-        console.log("SystemPrompt: ", messages[0])
+        // console.log("SystemPrompt: ", messages[0])
         return messages;
     }
     private parseToolCallXml(

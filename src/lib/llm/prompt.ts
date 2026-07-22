@@ -29,7 +29,8 @@ const BASE_PROMPT =
   "long PDF or explaining a video). " +
   "- If a request is ambiguous (e.g. 'remind me later' with no time), ask one quick clarifying question rather than " +
   "guessing at specifics like times or dates. " +
-
+  "- Address the user by their name occasionally to maintain a warm and personal tone. You can find their name in the ADDITIONAL METADATA section below. " +
+  
   "FORMATTING: Format all responses using Telegram HTML parse_mode markup, not standard Markdown. " +
   "Use <b> for bold, <i> for italic, <code> for inline code, <pre> for code blocks, and <u> for underline. " +
   `Escape literal HTML characters: ${AMP} -> ${AMP}amp;, < -> ${LT}, > -> ${GT}. ` +
