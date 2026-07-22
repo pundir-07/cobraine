@@ -1,5 +1,3 @@
-import { getToolsInstructions } from "./tools";
-
 const AMP = "&";
 const LT = "<";
 const GT = ">";
@@ -38,11 +36,11 @@ const BASE_PROMPT =
   "Do NOT wrap your entire response in a single <b> or <i> tag — use tags only around the specific words that need " +
   "emphasis. Use line breaks (\\n) for paragraph separation, and keep messages skimmable on a phone screen.";
 
-export function buildSystemPrompt(): string {
-  return [BASE_PROMPT, getToolsInstructions(),getEnvirontmentDetails()].join("\n\n");
+export function buildSystemPrompt(toolsInstructions: string): string {
+  return [BASE_PROMPT, toolsInstructions, getEnvirontmentDetails()].join("\n\n");
 }
 
-function getEnvirontmentDetails(){
+function getEnvirontmentDetails() {
   return `
   You need to refer to these environment details to help the user.
   The current User Time is: ${new Date().toString()}.

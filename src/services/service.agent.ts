@@ -2,7 +2,7 @@ import { buildSystemPrompt } from "../lib/llm/prompt";
 import { ChatMessage } from "../types/types.message";
 import { MessageService } from "./service.message";
 import { config } from "../config";
-import { getToolByName } from "../lib/llm/tools";
+import { toolsManager } from "../lib/llm/tools";
 
 interface ChatCompletionResponse {
     id: string;
@@ -99,7 +99,7 @@ export class AgentService {
                 // Malformed XML — treat as text_response
                 finalContent = trimmed;
             } else {
-                const tool = getToolByName(parsed.tool);
+                const tool = toolsManager.getToolByName(parsed.tool);
 
                 if (!tool) {
                     finalContent = trimmed;
@@ -114,7 +114,7 @@ export class AgentService {
             }
         } else {
             // No XML found — wrap everything as a text_response
-            const textTool = getToolByName("text_response");
+            const textTool = toolsManager.getToolByName("text_response");
             if (textTool) {
                 finalContent = await textTool.execute(
                     { content: trimmed },
@@ -138,15 +138,13 @@ export class AgentService {
             telegramChatId,
         );
 
+        const toolsInstructions = toolsManager.getToolsInstructions();
+
         const messages: ChatMessage[] = [
-            { role: "system", content: buildSystemPrompt() },
+            { role: "system", content: buildSystemPrompt(toolsInstructions) },
+            ...history.map(msg => ({ role: msg.role, content: msg.content })),
+            { role: "user", content: currentPrompt },
         ];
-
-        for (const msg of history) {
-            messages.push({ role: msg.role, content: msg.content });
-        }
-
-        messages.push({ role: "user", content: currentPrompt });
 
         return messages;
     }
