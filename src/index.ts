@@ -6,14 +6,14 @@ import agentComposer from "./features/composer.agent";
 import { connectRedis, disconnectRedis } from "./lib/redis";
 import { connectPostgres, closePostgres } from "./lib/postgres";
 import { toolsManager } from "./lib/llm/tools";
+import { bot } from "./lib/telegram";
+
 dotenv.config();
 
 async function main() {
     await connectRedis();
     await connectPostgres();
     await toolsManager.init(); // Initialize dynamic tools here!
-
-    const bot = new Bot(process.env.BOT_TOKEN!);
     await bot.api.setMyCommands([
         {
             command: "start",
