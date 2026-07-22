@@ -38,5 +38,5 @@ export const setReminderTool: ToolDefinition = {
         }
         return result.error;
     },
-    disabled: false
+    disabled: true
 };

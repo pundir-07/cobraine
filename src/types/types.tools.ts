@@ -15,7 +15,8 @@ export interface ToolDefinition {
         userId: number,
         chatId: number,
     ): Promise<string>;
-    disabled: boolean
+    disabled: boolean,
+    requiresFeedback?: boolean
 }
 
 /**

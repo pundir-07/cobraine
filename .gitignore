@@ -5,3 +5,4 @@ dev
 .redis/data/
 anyone.mjs
 anyone.py
+prompt.txt

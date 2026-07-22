@@ -84,7 +84,7 @@ export class AgentService {
 
         const trimmed = rawResponse.trim();
         let finalContent: string;
-
+        console.log('Raw response:', rawResponse)
         // The LLM must ALWAYS respond with <tool_call> XML.
         // If it doesn't, wrap the response in a text_response tool call.
         const xmlStart = trimmed.indexOf("<tool_call>");
