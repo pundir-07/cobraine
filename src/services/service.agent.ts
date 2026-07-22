@@ -3,6 +3,7 @@ import { ChatMessage } from "../types/types.message";
 import { MessageService } from "./service.message";
 import { config } from "../config";
 import { toolsManager } from "../lib/llm/tools";
+import { writeFileSync } from "node:fs";
 
 interface ChatCompletionResponse {
     id: string;
@@ -22,6 +23,7 @@ interface ChatOptions {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    tools?: any[];
 }
 
 export class AgentService {
@@ -38,7 +40,7 @@ export class AgentService {
     async chat(
         messages: ChatMessage[],
         options?: ChatOptions,
-    ): Promise<string> {
+    ): Promise<ChatMessage> {
         const response = await fetch(
             `${this.baseUrl}${config.openrouter.freeEndpoint}`,
             {
@@ -52,6 +54,7 @@ export class AgentService {
                     messages,
                     temperature: options?.temperature ?? 0.7,
                     max_tokens: options?.maxTokens ?? 1024,
+                    tools: options?.tools,
                 }),
             },
         );
@@ -62,9 +65,9 @@ export class AgentService {
                 `OpenRouter API error (${response.status}): ${errorText}`,
             );
         }
-
         const data: ChatCompletionResponse = await response.json();
-        return data.choices[0]?.message?.content ?? "";
+        console.log("Response data : ", data.choices[0].message)
+        return data.choices[0]?.message as ChatMessage;
     }
 
     async continueUserChat(
@@ -74,60 +77,53 @@ export class AgentService {
         currentPrompt: string,
         additional_metadata?: string
     ): Promise<string> {
-        const messages = await this.buildChatContext(
+        const initialMessages = await this.buildChatContext(
             userUuid,
             telegramId,
             currentPrompt,
             additional_metadata
         );
-        const rawResponse = await this.chat(messages);
 
-        const trimmed = rawResponse.trim();
-        let finalContent: string;
-        console.log('Raw response:', rawResponse)
-        // The LLM must ALWAYS respond with <tool_call> XML.
-        // If it doesn't, wrap the response in a text_response tool call.
-        const xmlStart = trimmed.indexOf("<tool_call>");
-        const xmlEnd = trimmed.lastIndexOf("</tool_call>");
+        let currentMessages = [...initialMessages];
 
-        if (xmlStart !== -1 && xmlEnd !== -1) {
-            const xmlBlock = trimmed.slice(
-                xmlStart,
-                xmlEnd + "</tool_call>".length,
-            );
-            const parsed = this.parseToolCallXml(xmlBlock);
+        while (true) {
+            const agentMsg = await this.chat(currentMessages, { tools: toolsManager.getNativeTools() });
+            const agentMessage = agentMsg as any;
 
-            if (!parsed) {
-                // Malformed XML
-                finalContent = `<i>[Agent Error: Malformed XML]</i>\n\n<pre>${this.escapeHtml(trimmed)}</pre>`;
-            } else {
-                const tool = toolsManager.getToolByName(parsed.tool);
+            // @ts-ignore - OpenAI types handle tool_calls but sometimes OpenRouter returns them slightly differently
+            const toolCalls = agentMessage.tool_calls || agentMessage.function_call ? [{ function: agentMessage.function_call }] : null;
 
-                if (!tool) {
-                    finalContent = `<i>[Agent Error: Unknown Tool '${parsed.tool}']</i>\n\n<pre>${this.escapeHtml(trimmed)}</pre>`;
-                } else {
-                    const result = await tool.execute(
-                        parsed.arguments,
-                        telegramId,
-                        chatId,
-                    );
-                    finalContent = result;
+            if (agentMessage.tool_calls && agentMessage.tool_calls.length > 0) {
+                console.dir(agentMessage, { depth: null })
+                currentMessages.push(agentMessage);
+
+                for (const toolCall of agentMessage.tool_calls) {
+                    const toolName = toolCall.function.name;
+                    const tool = toolsManager.getToolByName(toolName);
+                    console.log("Found tool:", tool)
+                    let resultContent: string;
+                    if (!tool) {
+                        resultContent = `Error: Unknown tool '${toolName}'`;
+                    } else {
+                        try {
+                            const args = JSON.parse(toolCall.function.arguments || '{}');
+                            console.log("ATTEMPTING TOOL CALL: ", tool)
+                            resultContent = await tool.execute(args, telegramId, chatId);
+                        } catch (e) {
+                            resultContent = `Error executing tool: ${e instanceof Error ? e.message : String(e)}`;
+                        }
+                    }
+
+                    currentMessages.push({
+                        role: "tool",
+                        tool_call_id: toolCall.id,
+                        content: resultContent
+                    });
                 }
-            }
-        } else {
-            // No XML found — wrap everything as a text_response
-            const textTool = toolsManager.getToolByName("text_response");
-            if (textTool) {
-                finalContent = await textTool.execute(
-                    { content: trimmed },
-                    telegramId,
-                    chatId,
-                );
             } else {
-                finalContent = this.escapeHtml(trimmed);
+                return agentMessage.content ? String(agentMessage.content) : "";
             }
         }
-        return finalContent;
     }
 
     private escapeHtml(text: string): string {
@@ -147,11 +143,10 @@ export class AgentService {
             userUuid,
             telegramChatId,
         );
-
-        const toolsInstructions = toolsManager.getToolsInstructions();
-
+        const systemPrompt = buildSystemPrompt()
+        writeFileSync("./systemPrompt.txt", systemPrompt)
         const messages: ChatMessage[] = [
-            { role: "system", content: `${buildSystemPrompt(toolsInstructions)}\n\nADDITIONAL METADATA:\n\n${additional_metadata} ` },
+            { role: "system", content: `${systemPrompt}\n\nADDITIONAL METADATA:\n\n${additional_metadata} ` },
             ...history.map(msg => ({ role: msg.role, content: msg.content })),
             { role: "user", content: currentPrompt },
         ];

@@ -1,4 +1,3 @@
-export interface ChatMessage {
-    role: "system" | "user" | "assistant";
-    content: string;
-}
+import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+
+export type ChatMessage = ChatCompletionMessageParam;
