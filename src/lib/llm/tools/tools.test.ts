@@ -10,8 +10,4 @@ describe("tools", () => {
     it("gets available tools from files", () => {
         toolsManager.getToolsList()
     });
-    
-    it.skip("gets the compiled tools instructions for all enabled tools", () => {
-        toolsManager.getToolsInstructions()
-    })
 });

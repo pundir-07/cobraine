@@ -125,4 +125,38 @@ export class ItemService {
             client.release();
         }
     }
+    static async semanticSearch(telegramId: number, query: string, limit: number = 5): Promise<any[]> {
+        const client = await pool.connect();
+        try {
+            // Embed the query
+            const queryEmbedding = await ollamaEmbedding.embed(query);
+            const vectorStr = `[${queryEmbedding.join(',')}]`;
+
+            const userRes = await client.query(`SELECT id FROM users WHERE telegram_id = $1`, [telegramId]);
+            if (userRes.rows.length === 0) return [];
+            const userUuid = userRes.rows[0].id;
+
+            const searchRes = await client.query(`
+                SELECT 
+                    i.id as item_id, 
+                    i.type, 
+                    i.title, 
+                    c.content as chunk_content,
+                    1 - (e.embedding <=> $1::vector) as similarity
+                FROM items i
+                JOIN chunks c ON i.id = c.item_id
+                JOIN embeddings e ON c.id = e.chunk_id
+                WHERE i.user_id = $2 AND i.status = 'active'
+                ORDER BY e.embedding <=> $1::vector
+                LIMIT $3
+            `, [vectorStr, userUuid, limit]);
+
+            return searchRes.rows;
+        } catch (error) {
+            console.error('Error in semanticSearch:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
 }
