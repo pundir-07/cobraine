@@ -1,4 +1,3 @@
-import { Bot } from "grammy";
 import dotenv from "dotenv";
 import startComposer from "./features/composer.start";
 import reminderComposer from "./features/composer.reminder";
@@ -14,6 +13,15 @@ async function main() {
     await connectRedis();
     await connectPostgres();
     await toolsManager.init(); // Initialize dynamic tools here!
+    await bot.api.setChatMenuButton({
+        menu_button: {
+            type: "web_app",
+            text: "Open Cobraine",
+            web_app: {
+                url: process.env.WEB_APP_URL!,
+            },
+        },
+    });
     await bot.api.setMyCommands([
         {
             command: "start",

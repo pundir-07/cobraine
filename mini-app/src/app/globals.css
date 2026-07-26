@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  /* Fallback colors for normal browser */
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #222222;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f0f0f0;
+  --tg-theme-header-bg-color: #ffffff;
+  --tg-theme-accent-text-color: #2481cc;
+  --tg-theme-section-bg-color: #ffffff;
+  --tg-theme-section-header-text-color: #2481cc;
+  --tg-theme-subtitle-text-color: #999999;
+  --tg-theme-destructive-text-color: #ff3b30;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-theme-bg-color: #18222d;
+    --tg-theme-text-color: #ffffff;
+    --tg-theme-hint-color: #b1c3d5;
+    --tg-theme-link-color: #62bcf9;
+    --tg-theme-button-color: #2ea6ff;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #131415;
+    --tg-theme-header-bg-color: #18222d;
+    --tg-theme-accent-text-color: #62bcf9;
+    --tg-theme-section-bg-color: #18222d;
+    --tg-theme-section-header-text-color: #62bcf9;
+    --tg-theme-subtitle-text-color: #b1c3d5;
+    --tg-theme-destructive-text-color: #ff3b30;
+  }
+}
+
+@theme inline {
+  --color-tg-bg: var(--tg-theme-bg-color);
+  --color-tg-text: var(--tg-theme-text-color);
+  --color-tg-hint: var(--tg-theme-hint-color);
+  --color-tg-link: var(--tg-theme-link-color);
+  --color-tg-button: var(--tg-theme-button-color);
+  --color-tg-button-text: var(--tg-theme-button-text-color);
+  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color);
+  --color-tg-header-bg: var(--tg-theme-header-bg-color);
+  --color-tg-accent-text: var(--tg-theme-accent-text-color);
+  --color-tg-section-bg: var(--tg-theme-section-bg-color);
+  --color-tg-section-header-text: var(--tg-theme-section-header-text-color);
+  --color-tg-subtitle-text: var(--tg-theme-subtitle-text-color);
+  --color-tg-destructive-text: var(--tg-theme-destructive-text-color);
+}
+
+body {
+  background: var(--tg-theme-bg-color);
+  color: var(--tg-theme-text-color);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
