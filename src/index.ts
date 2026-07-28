@@ -1,11 +1,10 @@
 import dotenv from "dotenv";
-import startComposer from "./features/composer.start";
-import reminderComposer from "./features/composer.reminder";
-import agentComposer from "./features/composer.agent";
+import startComposer from "./composer.start";
 import { connectRedis, disconnectRedis } from "./lib/redis";
 import { connectPostgres, closePostgres } from "./lib/postgres";
 import { toolsManager } from "./lib/llm/tools";
 import { bot } from "./lib/telegram";
+import cobraineComposer from "./composer.cobraine";
 
 dotenv.config();
 
@@ -27,14 +26,10 @@ async function main() {
             command: "start",
             description: "Welcome to Cobraine",
         },
-        {
-            command: "reminder",
-            description: "Create a new reminder",
-        },
     ]);
     bot.use(startComposer);
-    bot.use(reminderComposer);
-    bot.use(agentComposer);
+    bot.use(cobraineComposer)
+    // bot.use(agentComposer);
 
     process.once("SIGINT", async () => {
         await bot.stop();
