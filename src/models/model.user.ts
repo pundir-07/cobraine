@@ -8,6 +8,7 @@ export class User {
     public firstName: string;
     public lastName: string | null;
     public languageCode: string;
+    public readonly freeMessagesUsed: number;
 
     // 2. Private constructor forces the use of factory methods
     private constructor(params: {
@@ -16,12 +17,14 @@ export class User {
         firstName: string;
         lastName?: string | null;
         languageCode?: string | null;
+        freeMessagesUsed?: number;
     }) {
         this.internalId = params.internalId;
         this.telegramId = params.telegramId;
         this.firstName = params.firstName;
         this.lastName = params.lastName || null;
         this.languageCode = params.languageCode || 'en';
+        this.freeMessagesUsed = params.freeMessagesUsed ?? 0;
     }
 
     // 3. FACTORY: Create from Database
@@ -32,6 +35,7 @@ export class User {
             firstName: dbRecord.firstName || "", // Fallback if somehow null
             lastName: null, // Note: The current DB schema might not have last_name mapped to UserRecord, we keep it null
             languageCode: 'en',
+            freeMessagesUsed: dbRecord.freeMessagesUsed ?? 0,
         });
     }
 

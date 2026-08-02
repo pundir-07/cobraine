@@ -1,9 +1,12 @@
 import { Context } from 'grammy';
+import { ChatOpenAI } from '@langchain/openai';
 import { UserService } from '../../services/service.user';
 import { User } from '../../models/model.user';
 import { AgentGraphInput } from '../graph';
 import { buildMessageContext } from '../context';
 import { Attachment } from '../types/types.agent.attachment';
+import { UsageService } from '../../services/service.usage';
+import { buildLLM } from '../../lib/llm/factory';
 
 /**
  * Receives a raw Telegram grammy Context and resolves it into a typed,
@@ -12,6 +15,8 @@ import { Attachment } from '../types/types.agent.attachment';
  * Responsibilities:
  *  - Extract Telegram identifiers (telegramId, chatId, text/caption, attachments)
  *  - Upsert and expose the domain User object
+ *  - Gate usage (free quota / user-provided credentials)
+ *  - Build the LLM instance for this request
  *  - Build the AgentGraphInput (messages + userContext + attachments) for graph invocation
  *
  * The agent graph and all downstream layers never see the raw Telegram ctx.
@@ -24,23 +29,39 @@ export class TelegramReceiver {
     readonly attachments: Attachment[];
     readonly user: User;
 
+    /**
+     * The ChatOpenAI instance to use for this request.
+     * null if usage was denied (free quota exhausted, no provider configured).
+     */
+    readonly llm: ChatOpenAI | null;
+
+    /**
+     * If set, the user is not allowed to invoke the LLM.
+     * Contains the denial message to send back.
+     */
+    readonly usageDenied: string | null;
+
     private constructor(
         telegramId: number,
         chatId: number,
         text: string,
         attachments: Attachment[],
         user: User,
+        llm: ChatOpenAI | null,
+        usageDenied: string | null,
     ) {
         this.telegramId = telegramId;
         this.chatId = chatId;
         this.text = text;
         this.attachments = attachments;
         this.user = user;
+        this.llm = llm;
+        this.usageDenied = usageDenied;
     }
 
     /**
      * Factory — call this in the Telegram handler before invoking the graph.
-     * Handles user upsert internally so the interaction layer stays clean.
+     * Handles user upsert and usage gating internally so the interaction layer stays clean.
      *
      * Text resolution priority:
      *   1. Explicit override (e.g. a resume answer from a callback query)
@@ -68,7 +89,22 @@ export class TelegramReceiver {
 
         const user = await UserService.upsertUser(telegramId, username, firstName);
 
-        return new TelegramReceiver(telegramId, chatId, messageText, attachments, user);
+        // ── Usage gating ──────────────────────────────────────────────────
+        const usageResult = await UsageService.checkAndConsume(user.internalId);
+
+        if (!usageResult.allowed) {
+            return new TelegramReceiver(
+                telegramId, chatId, messageText, attachments, user,
+                null, usageResult.reason!,
+            );
+        }
+
+        const llm = buildLLM(usageResult.providerConfig);
+
+        return new TelegramReceiver(
+            telegramId, chatId, messageText, attachments, user,
+            llm, null,
+        );
     }
 
     /** Additional metadata string injected into the system prompt. */
@@ -167,3 +203,4 @@ export class TelegramReceiver {
         return attachments;
     }
 }
+

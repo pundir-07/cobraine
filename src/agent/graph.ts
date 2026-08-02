@@ -13,7 +13,6 @@ import { checkpointer } from './checkpointer';
 import { buildAgentTools } from './tools';
 import { AskUserPayload } from './tools/tool.ask_user';
 import { UserContext } from './state';
-import { config } from '../config';
 import { Attachment } from './types/types.agent.attachment';
 
 export interface AgentGraphInput {
@@ -44,17 +43,10 @@ export type AgentGraphOutput = AgentGraphResult | AgentGraphInterrupt;
  * Uses the explicit StateGraph API (not createReactAgent) for full control
  * over state, nodes, and edges. Custom state fields (userContext, attachments)
  * can be added here without fighting the prebuilt abstraction.
+ *
+ * The LLM is injected externally — the graph is provider-agnostic.
  */
-function buildGraph(telegramId: number, chatId: number) {
-    const llm = new ChatOpenAI({
-        model: config.openrouter.defaultModel,
-        apiKey: config.openrouter.apiKey,
-        configuration: {
-            baseURL: config.openrouter.baseUrl,
-        },
-        temperature: 0,
-    });
-
+function buildGraph(telegramId: number, chatId: number, llm: ChatOpenAI) {
     const tools = buildAgentTools(telegramId, chatId);
     const llmWithTools = llm.bindTools(tools);
     const toolNode = new ToolNode(tools);
@@ -115,9 +107,9 @@ async function drainStream(
  * Start (or continue a non-interrupted) agent graph invocation.
  * Returns either the final assistant response or an interrupt payload.
  */
-export async function runAgentGraph(input: AgentGraphInput): Promise<AgentGraphOutput> {
+export async function runAgentGraph(input: AgentGraphInput, llm: ChatOpenAI): Promise<AgentGraphOutput> {
     const { telegramId, chatId } = input.userContext;
-    const graph = buildGraph(telegramId, chatId);
+    const graph = buildGraph(telegramId, chatId, llm);
 
     const stream = await graph.stream(
         { messages: input.messages },
@@ -135,8 +127,9 @@ export async function resumeAgentGraph(
     telegramId: number,
     chatId: number,
     answer: string,
+    llm: ChatOpenAI,
 ): Promise<AgentGraphOutput> {
-    const graph = buildGraph(telegramId, chatId);
+    const graph = buildGraph(telegramId, chatId, llm);
 
     const stream = await graph.stream(
         new Command({ resume: answer }),
@@ -145,3 +138,4 @@ export async function resumeAgentGraph(
 
     return drainStream(stream);
 }
+

@@ -33,6 +33,12 @@ cobraineComposer.on(['message:text', "message:document", "message:photo", "messa
     try {
         const receiver = await TelegramReceiver.fromCtx(ctx);
 
+        // ── Usage gating ──────────────────────────────────────────────────
+        if (receiver.usageDenied) {
+            await TelegramResponder.resolve(ctx, thinking, receiver.usageDenied);
+            return;
+        }
+
         if (interrupted) {
             // Resume an interrupted graph thread with the user's text/media answer
             interruptedSessions.delete(userId);
@@ -40,6 +46,7 @@ cobraineComposer.on(['message:text', "message:document", "message:photo", "messa
                 interrupted.telegramId,
                 interrupted.chatId,
                 receiver.text,
+                receiver.llm!,
             );
             await handleGraphOutput(ctx, thinking, receiver, result);
         } else {
@@ -52,7 +59,7 @@ cobraineComposer.on(['message:text', "message:document", "message:photo", "messa
             );
 
             const input = await receiver.buildGraphInput();
-            const result = await runAgentGraph(input);
+            const result = await runAgentGraph(input, receiver.llm!);
 
             await handleGraphOutput(ctx, thinking, receiver, result);
         }
@@ -80,10 +87,18 @@ cobraineComposer.callbackQuery(/^cobraine:answer:/, async (ctx) => {
 
     try {
         const receiver = await TelegramReceiver.fromCtx(ctx, answer);
+
+        if (receiver.usageDenied) {
+            await TelegramResponder.resolve(ctx, thinking, receiver.usageDenied);
+            await ctx.answerCallbackQuery();
+            return;
+        }
+
         const result = await resumeAgentGraph(
             interrupted.telegramId,
             interrupted.chatId,
             answer,
+            receiver.llm!,
         );
         await handleGraphOutput(ctx, thinking, receiver, result);
     } catch (error) {

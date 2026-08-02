@@ -10,6 +10,7 @@ export type UserRecord = {
     username: string | null;
     firstName: string | null;
     timezone: string;
+    freeMessagesUsed: number;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -33,7 +34,7 @@ export class UserService {
         username?: string,
         firstName?: string,
     ): Promise<User> {
-        const result = await pool.query<{ id: string, telegram_id: number, username: string | null, first_name: string | null, timezone: string, created_at: Date, updated_at: Date }>(
+        const result = await pool.query<{ id: string, telegram_id: number, username: string | null, first_name: string | null, timezone: string, free_messages_used: number, created_at: Date, updated_at: Date }>(
             `INSERT INTO users (telegram_id, username, first_name)
              VALUES ($1, $2, $3)
              ON CONFLICT (telegram_id)
@@ -53,6 +54,7 @@ export class UserService {
             username: row.username,
             firstName: row.first_name,
             timezone: row.timezone,
+            freeMessagesUsed: row.free_messages_used,
             createdAt: row.created_at,
             updatedAt: row.updated_at
         });
@@ -67,7 +69,8 @@ export class UserService {
     static async getUserByTelegramId(telegramId: number): Promise<User | null> {
         const result = await pool.query<UserRecord>(
             `SELECT id, telegram_id as "telegramId", username, first_name as "firstName", 
-                    timezone, created_at as "createdAt", updated_at as "updatedAt"
+                    timezone, free_messages_used as "freeMessagesUsed",
+                    created_at as "createdAt", updated_at as "updatedAt"
              FROM users
              WHERE telegram_id = $1`,
             [telegramId],
@@ -85,7 +88,8 @@ export class UserService {
     static async getUserById(id: string): Promise<User | null> {
         const result = await pool.query<UserRecord>(
             `SELECT id, telegram_id as "telegramId", username, first_name as "firstName",
-                    timezone, created_at as "createdAt", updated_at as "updatedAt"
+                    timezone, free_messages_used as "freeMessagesUsed",
+                    created_at as "createdAt", updated_at as "updatedAt"
              FROM users
              WHERE id = $1`,
             [id],
