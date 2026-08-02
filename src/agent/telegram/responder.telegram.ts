@@ -40,7 +40,7 @@ export class TelegramResponder {
         await ctx.api.editMessageText(
             thinking.chatId,
             thinking.messageId,
-            `🤖 <b>Agent</b>\n\n${content}`,
+            `🤖 <b>Agent</b>\n\n${formatTelegramHtml(content)}`,
             { parse_mode: 'HTML' },
         );
     }
@@ -54,7 +54,7 @@ export class TelegramResponder {
         error: unknown,
     ): Promise<void> {
         const message =
-            error instanceof Error ? escapeHtml(error.message) : 'Unknown error';
+            error instanceof Error ? formatTelegramHtml(error.message) : 'Unknown error';
         await ctx.api.editMessageText(
             thinking.chatId,
             thinking.messageId,
@@ -85,7 +85,7 @@ export class TelegramResponder {
             await ctx.api.editMessageText(
                 thinking.chatId,
                 thinking.messageId,
-                `🤖 <b>Agent</b>\n\n${escapeHtml(payload.question)}`,
+                `🤖 <b>Agent</b>\n\n${formatTelegramHtml(payload.question)}`,
                 {
                     parse_mode: 'HTML',
                     reply_markup: keyboard,
@@ -96,16 +96,45 @@ export class TelegramResponder {
             await ctx.api.editMessageText(
                 thinking.chatId,
                 thinking.messageId,
-                `🤖 <b>Agent</b>\n\n${escapeHtml(payload.question)}`,
+                `🤖 <b>Agent</b>\n\n${formatTelegramHtml(payload.question)}`,
                 { parse_mode: 'HTML' },
             );
         }
     }
 }
 
-function escapeHtml(text: string): string {
-    return text
+/**
+ * Safely converts standard Markdown into Telegram-compatible HTML.
+ * It first escapes all bare HTML entities, then maps markdown tags 
+ * (bold, italic, code, headers, strikethrough) to Telegram HTML tags.
+ */
+function formatTelegramHtml(text: string): string {
+    // 1. Escape HTML first to prevent any literal < > from breaking Telegram
+    let safe = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+
+    // 2. Convert markdown to Telegram HTML
+    safe = safe
+        // Code blocks: ```language\ncode\n```
+        .replace(/```(?:[a-z0-9]+)?\n([\s\S]*?)```/g, '<pre>$1</pre>')
+        // Inline code: `text`
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        // Bold: **text**
+        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+        // Italic: *text* (be careful with lists like * item)
+        .replace(/(^|[^\w*])\*([^*\n\s][^*\n]*?[^*\n\s]|[^*\n\s])\*(?=[^\w*]|$)/g, '$1<i>$2</i>')
+        // Italic: _text_
+        .replace(/(^|[^\w_])_([^\n_\s][^\n_]*?[^\n_\s]|[^\n_\s])_(?=[^\w_]|$)/g, '$1<i>$2</i>')
+        // Headers: # Heading -> <b>Heading</b>
+        .replace(/^#+\s+(.*)$/gm, '<b>$1</b>')
+        // Strikethrough: ~~text~~
+        .replace(/~~([^~]+)~~/g, '<s>$1</s>');
+
+    // 3. Unescape valid HTML tags that the LLM might have output due to context history
+    safe = safe.replace(/&lt;(b|i|u|s|code|pre)&gt;/gi, '<$1>');
+    safe = safe.replace(/&lt;\/(b|i|u|s|code|pre)&gt;/gi, '</$1>');
+
+    return safe;
 }
