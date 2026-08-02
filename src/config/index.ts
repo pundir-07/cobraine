@@ -17,4 +17,9 @@ export const config = {
       process.env.DATABASE_URL,
     maxPool: 20,
   },
+  deepseek: {
+    baseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1",
+    apiKey: process.env.DEEPSEEK_API_KEY ?? "",
+    defaultModel: process.env.DEEPSEEK_DEFAULT_MODEL ?? "deepseek-chat",
+  }
 } as const;

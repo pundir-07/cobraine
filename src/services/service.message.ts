@@ -52,13 +52,17 @@ export class MessageService {
     static async getConversationHistory(
         userUuid: string,
         telegramChatId: number,
-        limit: number = 20, // Disabled for now
+        limit: number = 20,
     ): Promise<MessageRecord[]> {
         const result = await pool.query<MessageRecord>(
-            `SELECT * FROM chat_messages
-            WHERE user_id = $1 AND telegram_chat_id = $2
+            `SELECT * FROM (
+                SELECT * FROM chat_messages
+                WHERE user_id = $1 AND telegram_chat_id = $2
+                ORDER BY created_at DESC
+                LIMIT $3
+            ) sub
             ORDER BY created_at ASC`,
-            [userUuid, telegramChatId],
+            [userUuid, telegramChatId, limit],
         );
 
         return result.rows;

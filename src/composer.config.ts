@@ -13,6 +13,7 @@ const PROVIDERS: Record<string, ProviderMeta> = {
     openrouter: { label: '🌐 OpenRouter', defaultModel: 'openrouter/free' },
     openai:     { label: '🤖 OpenAI',     defaultModel: 'gpt-4o-mini' },
     anthropic:  { label: '🟤 Anthropic',  defaultModel: 'claude-3-5-sonnet-latest' },
+    deepseek:   { label: '🐳 DeepSeek',   defaultModel: 'deepseek-chat' },
 };
 
 // ─── In-process config session state ──────────────────────────────────────────
@@ -365,6 +366,7 @@ async function fetchSuggestedModels(provider: string, apiKey: string): Promise<s
     if (provider === 'openai') return ['gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview'];
     if (provider === 'anthropic') return ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'];
     if (provider === 'openrouter') return ['openrouter/free', 'google/gemini-2.0-flash-exp:free', 'meta-llama/llama-3.1-8b-instruct:free'];
+    if (provider === 'deepseek') return ['deepseek-chat', 'deepseek-reasoner'];
     
     return [];
 }

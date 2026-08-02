@@ -11,6 +11,7 @@ const PROVIDER_BASE_URLS: Record<string, string> = {
     openai: 'https://api.openai.com/v1',
     together: 'https://api.together.xyz/v1',
     groq: 'https://api.groq.com/openai/v1',
+    deepseek: 'https://api.deepseek.com/v1',
 };
 
 /**
