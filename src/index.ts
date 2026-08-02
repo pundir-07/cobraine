@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import startComposer from "./composer.start";
+import configComposer from "./composer.config";
 import { connectRedis, disconnectRedis } from "./lib/redis";
 import { connectPostgres, closePostgres } from "./lib/postgres";
 import { toolsManager } from "./lib/llm/tools";
@@ -26,8 +27,13 @@ async function main() {
             command: "start",
             description: "Welcome to Cobraine",
         },
+        {
+            command: "config",
+            description: "Configure your LLM provider",
+        },
     ]);
     bot.use(startComposer);
+    bot.use(configComposer);
     bot.use(cobraineComposer)
     // bot.use(agentComposer);
 
