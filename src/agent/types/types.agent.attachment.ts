@@ -1,5 +1,18 @@
 export type Attachment = {
-    type: string,
-    id: string | number
-    title: string
+    type:
+    | "document"
+    | "photo"
+    | "video"
+    | "audio"
+    | "voice";
+
+    telegramFileId: string;
+
+    filename?: string;
+
+    mimeType?: string;
+
+    size?: number;
+
+    caption?: string;
 }

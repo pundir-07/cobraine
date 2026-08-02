@@ -14,10 +14,13 @@ import { buildAgentTools } from './tools';
 import { AskUserPayload } from './tools/tool.ask_user';
 import { UserContext } from './state';
 import { config } from '../config';
+import { Attachment } from './types/types.agent.attachment';
 
 export interface AgentGraphInput {
     messages: BaseMessage[];
     userContext: UserContext;
+    /** Attachments extracted from the Telegram message, if any. */
+    attachments?: Attachment[];
 }
 
 export interface AgentGraphResult {

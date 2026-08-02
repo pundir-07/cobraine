@@ -17,9 +17,9 @@ const cobraineComposer = new Composer();
 
 // ─── Text messages ────────────────────────────────────────────────────────────
 
-cobraineComposer.on('message:text', async (ctx, next) => {
+cobraineComposer.on(['message:text', "message:document", "message:photo", "message:video"], async (ctx, next) => {
     // Let command handlers run first
-    if (ctx.message.text.startsWith('/')) {
+    if (ctx.message.text && ctx.message.text.startsWith('/')) {
         await next();
         return;
     }
@@ -34,12 +34,12 @@ cobraineComposer.on('message:text', async (ctx, next) => {
         const receiver = await TelegramReceiver.fromCtx(ctx);
 
         if (interrupted) {
-            // Resume an interrupted graph thread with the user's text answer
+            // Resume an interrupted graph thread with the user's text/media answer
             interruptedSessions.delete(userId);
             const result = await resumeAgentGraph(
                 interrupted.telegramId,
                 interrupted.chatId,
-                ctx.message.text,
+                receiver.text,
             );
             await handleGraphOutput(ctx, thinking, receiver, result);
         } else {
