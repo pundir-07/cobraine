@@ -3,6 +3,9 @@ import { setReminderTool, listRemindersTool } from './tool.reminder';
 import { saveItemTool } from './tool.save_item';
 import { semanticSearchTool } from './tool.semantic_search';
 import { askUserTool } from './tool.ask_user';
+import { saveFileTool } from './tool.save_file';
+import { sendFileTool } from './tool.send_file';
+import { searchFilesTool } from './tool.search_files';
 
 /**
  * Build the full set of agent tools for a specific user session.
@@ -21,5 +24,9 @@ export function buildAgentTools(
         saveItemTool(telegramId),
         semanticSearchTool(telegramId),
         askUserTool,
+        saveFileTool(telegramId),
+        sendFileTool(chatId),
+        searchFilesTool(telegramId),
     ];
 }
+

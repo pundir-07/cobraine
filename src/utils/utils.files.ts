@@ -1,11 +1,10 @@
-import { bot } from "@/lib/telegram";
+/**
+ * @deprecated Use TelegramFileService from '../../services/service.telegram_file' instead.
+ * This shim exists only for backwards compatibility.
+ */
+import { TelegramFileService } from '../services/service.telegram_file';
 
 export async function downloadTelegramFile(fileId: string): Promise<Buffer> {
-    const file = await bot.api.getFile(fileId);
-
-    const url = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
-
-    const res = await fetch(url);
-
-    return Buffer.from(await res.arrayBuffer());
+    const { buffer } = await TelegramFileService.download(fileId);
+    return buffer;
 }
