@@ -2,17 +2,14 @@ import {
     BaseMessage,
     HumanMessage,
     AIMessage,
-    SystemMessage,
 } from '@langchain/core/messages';
 import { MessageService } from '../services/service.message';
-import { buildSystemPrompt } from '../lib/llm/prompt';
 import { Attachment } from './types/types.agent.attachment';
 
 export interface MessageContextInput {
     userUuid: string;
     chatId: number;
     prompt: string;
-    additionalMetadata?: string;
     attachments?: Attachment[];
 }
 
@@ -31,15 +28,9 @@ export async function buildMessageContext({
     userUuid,
     chatId,
     prompt,
-    additionalMetadata,
     attachments,
 }: MessageContextInput): Promise<BaseMessage[]> {
     const history = await MessageService.getConversationHistory(userUuid, chatId);
-    const systemPrompt = buildSystemPrompt();
-
-    const systemContent = additionalMetadata
-        ? `${systemPrompt}\n\nADDITIONAL METADATA:\n\n${additionalMetadata}`
-        : systemPrompt;
 
     const historyMessages: BaseMessage[] = history.map((msg) =>
         msg.role === 'user'
@@ -50,7 +41,6 @@ export async function buildMessageContext({
     const userContent = buildUserContent(prompt, attachments);
 
     return [
-        new SystemMessage(systemContent),
         ...historyMessages,
         new HumanMessage(userContent),
     ];

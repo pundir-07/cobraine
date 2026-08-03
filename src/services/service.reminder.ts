@@ -60,12 +60,13 @@ export class ReminderService {
         `, [input.userId]);
         const userUuid = userRes.rows[0].id;
 
-        // 2. Create Item in PostgreSQL (store chatId in metadata)
+        // 2. Create Item in PostgreSQL (store chatId and optional checkpointId in metadata)
+        const metadata = { chatId: input.chatId, checkpointId: input.checkpointId };
         const itemRes = await pool.query(`
             INSERT INTO items (user_id, type, title, metadata)
             VALUES ($1, 'reminder', $2, $3)
             RETURNING id
-        `, [userUuid, input.title, JSON.stringify({ chatId: input.chatId })]);
+        `, [userUuid, input.title, JSON.stringify(metadata)]);
         const itemId = itemRes.rows[0].id;
 
         // 3. Create Reminder in PostgreSQL
@@ -119,9 +120,10 @@ export class ReminderService {
             title: string;
             date: string;
             time: string;
+            checkpointId?: string;
         },
     ): Promise<{ ok: true; reminder: ReminderRecord; display: string } | { ok: false; error: string }> {
-        const { chatId, userId, title, date: dateStr, time: timeStr } = input;
+        const { chatId, userId, title, date: dateStr, time: timeStr, checkpointId } = input;
 
         if (!title || !dateStr || !timeStr) {
             return { ok: false, error: "Missing required fields: title, date, and time are all needed." };
@@ -151,7 +153,7 @@ export class ReminderService {
         }
 
         try {
-            const reminder = await ReminderService.createReminder({ chatId, userId, title, remindAt });
+            const reminder = await ReminderService.createReminder({ chatId, userId, title, remindAt, checkpointId });
 
             if (!reminder) {
                 return {
@@ -214,6 +216,7 @@ export class ReminderService {
                 r.id, 
                 i.title, 
                 i.metadata->>'chatId' as chat_id,
+                i.metadata->>'checkpointId' as checkpoint_id,
                 r.remind_at, 
                 r.status, 
                 r.created_at, 
@@ -241,6 +244,7 @@ export class ReminderService {
             attempts: "0",
             createdAt: new Date(row.created_at).toISOString(),
             updatedAt: new Date(row.created_at).toISOString(),
+            checkpointId: row.checkpoint_id || undefined,
         };
 
         if (row.sent_at) {

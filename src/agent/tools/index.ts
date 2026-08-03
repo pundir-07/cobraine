@@ -25,6 +25,7 @@ export function buildMainAgentTools(
     chatId: number,
 ): StructuredToolInterface[] {
     return [
+        setReminderTool(telegramId, chatId),
         listRemindersTool(telegramId),
         saveItemTool(telegramId),
         semanticSearchTool(telegramId),

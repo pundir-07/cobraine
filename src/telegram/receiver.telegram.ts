@@ -1,12 +1,12 @@
 import { Context } from 'grammy';
 import { ChatOpenAI } from '@langchain/openai';
-import { UserService } from '../../services/service.user';
-import { User } from '../../models/model.user';
-import { AgentGraphInput } from '../graph';
-import { buildMessageContext } from '../context';
-import { Attachment } from '../types/types.agent.attachment';
-import { UsageService } from '../../services/service.usage';
-import { buildLLM } from '../../lib/llm/factory';
+import { UserService } from '../services/service.user';
+import { User } from '../models/model.user';
+import { AgentGraphInput } from '../agent/graph';
+import { buildMessageContext } from '../agent/context';
+import { Attachment } from '../types/types.agent';
+import { UsageService } from '../services/service.usage';
+import { buildLLM } from '../agent/factory';
 
 /**
  * Receives a raw Telegram grammy Context and resolves it into a typed,
@@ -108,10 +108,7 @@ export class TelegramReceiver {
         );
     }
 
-    /** Additional metadata string injected into the system prompt. */
-    get additionalMetadata(): string {
-        return `User Name: ${this.user.fullName}\nLanguage: ${this.user.languageCode ?? 'en'}`;
-    }
+    // removed additionalMetadata as it's now handled natively by the agent node
 
     /**
      * Build the AgentGraphInput — resolves conversation history + system prompt
@@ -122,7 +119,6 @@ export class TelegramReceiver {
             userUuid: this.user.internalId,
             chatId: this.chatId,
             prompt: this.text,
-            additionalMetadata: this.additionalMetadata,
             attachments: this.attachments,
         });
 

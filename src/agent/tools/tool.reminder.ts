@@ -4,13 +4,14 @@ import { ReminderService } from '../../services/service.reminder';
 
 export const setReminderTool = (userId: number, chatId: number) =>
     tool(
-        async ({ title, date, time }) => {
+        async ({ title, date, time, checkpointId }) => {
             const result = await ReminderService.createReminderFromStrings({
                 chatId,
                 userId,
                 title,
                 date,
                 time,
+                checkpointId,
             });
             return result.ok ? result.display : result.error;
         },
@@ -29,6 +30,12 @@ export const setReminderTool = (userId: number, chatId: number) =>
                     .string()
                     .describe(
                         'Time for the reminder in 12h or 24h format (e.g., 9am, 9:30pm, 21:30). Must be in the future.',
+                    ),
+                checkpointId: z
+                    .string()
+                    .optional()
+                    .describe(
+                        'Optional ID of the plan checkpoint this reminder is for. Provide this if creating a reminder for a checkpoint.',
                     ),
             }),
         },

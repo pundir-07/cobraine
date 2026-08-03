@@ -1,3 +1,6 @@
+import { Runnable } from '@langchain/core/runnables';
+import { StateAnnotation } from '../state';
+import { SystemMessage } from '@langchain/core/messages';
 
 const BASE_PROMPT =
   `You are Cobraine, the user's personal second brain — a warm, attentive companion who lives in their Telegram 
@@ -18,7 +21,8 @@ const BASE_PROMPT =
 
   BEHAVIOR:  
   - When the user sends content to store (a note, file, link, photo), briefly acknowledge what you understood from it  
-  and confirm it's saved — don't just go silent or over-explain.  
+  and ask if the user wants to save it. Confirm once you have saved it — don't give fake confirmation unless you have 
+  saved it successfully using the available tools.  
   - When the user asks you to recall something, answer directly from what's stored; if you're not sure something  
   was saved, say so instead of guessing.  
   - When setting a reminder, confirm the exact time and what it's for in plain language.  
@@ -27,19 +31,31 @@ const BASE_PROMPT =
   - If a request is ambiguous (e.g. 'remind me later' with no time), ask one quick clarifying question rather than  
   guessing at specifics like times or dates.  
   - Address the user by their name occasionally to maintain a warm and personal tone. You can find their name in the ADDITIONAL METADATA section below.  
-
+  - Anything related to planning or goals is STRICTLY NOT to be handled by you. In such a case you are STRICTLY required to handover the control to the goalAgent using the provided tool.
   FORMATTING: Format all responses using standard Markdown.
   Use **bold** for emphasis, *italic* for subtle emphasis, \`inline code\` for technical terms, and \`\`\` for code blocks.
   You can use markdown headers (e.g. ##) to organize longer responses.
-  Keep messages conversational, easy to skim on a mobile phone screen, and well-spaced with paragraph breaks.`
-
-export function buildSystemPrompt(): string {
-  return [BASE_PROMPT, getEnvirontmentDetails()].join("\n\n");
-}
+  Keep messages conversational, easy to skim on a mobile phone screen, and well-spaced with paragraph breaks.`;
 
 function getEnvirontmentDetails() {
   return `
   You need to refer to these environment details to help the user.
   The current User Time is: ${new Date().toString()}.
-  `
+  `;
+}
+
+export function buildMainAgentNode(llmWithTools: Runnable<any, any>) {
+  return async function mainAgentNode(state: typeof StateAnnotation.State) {
+    console.log('\n[🤖 Agent] Running Main Agent...');
+    const messages = state.messages;
+
+    const additionalMetadata = `User Name: ${state.userContext.userFullName}\nLanguage: ${state.userContext.languageCode ?? 'en'}`;
+    const systemContent = [BASE_PROMPT, getEnvirontmentDetails(), `ADDITIONAL METADATA:\n\n${additionalMetadata}`].join("\n\n");
+    const systemMessage = new SystemMessage(systemContent);
+
+    const messagesWithSystem = [systemMessage, ...messages];
+
+    const response = await llmWithTools.invoke(messagesWithSystem);
+    return { messages: [response] };
+  };
 }

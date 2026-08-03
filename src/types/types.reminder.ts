@@ -42,6 +42,7 @@ export type RedisReminderRecord = {
     completedAt?: string;
     failedAt?: string;
     failureReason?: string;
+    checkpointId?: string;
 };
 
 // ============================================================================
@@ -62,6 +63,7 @@ export type CreateReminderInput = {
     userId: number;
     title: string;
     remindAt: Date;
+    checkpointId?: string;
 };
 
 // ============================================================================

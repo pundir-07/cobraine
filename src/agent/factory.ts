@@ -1,6 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { ProviderConfig } from '../../services/service.provider';
-import { config } from '../../config';
+import { ProviderConfig } from '../services/service.provider';
+import { config } from '../config';
 
 /**
  * Well-known base URLs for supported providers.
@@ -40,10 +40,10 @@ export function buildLLM(providerConfig?: ProviderConfig): ChatOpenAI {
 
     // Free tier — shared Cobraine key
     return new ChatOpenAI({
-        model: config.openrouter.defaultModel,
-        apiKey: config.openrouter.apiKey,
+        model: config.deepseek.defaultModel,
+        apiKey: config.deepseek.apiKey,
         configuration: {
-            baseURL: config.openrouter.baseUrl,
+            baseURL: config.deepseek.baseUrl,
         },
         temperature: 0,
     });

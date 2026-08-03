@@ -1,6 +1,6 @@
 import { Composer } from 'grammy';
-import { TelegramReceiver } from './agent/telegram/receiver.telegram';
-import { TelegramResponder } from './agent/telegram/responder.telegram';
+import { TelegramReceiver } from './telegram/receiver.telegram';
+import { TelegramResponder } from './telegram/responder.telegram';
 import { runAgentGraph, resumeAgentGraph } from './agent/graph';
 import { MessageService } from './services/service.message';
 import { ReminderService } from './services/service.reminder';
@@ -127,18 +127,20 @@ cobraineComposer.callbackQuery(/^reminder:done:/, async (ctx) => {
     }
     await ctx.answerCallbackQuery({ text: 'Marked as done!' });
 
-    // Invoke goalAgent for feedback
-    try {
-        const receiver = await TelegramReceiver.fromCtx(ctx, '');
-        const input = await receiver.buildGraphInput();
-        input.messages.push(new HumanMessage(`I just completed my checkpoint reminder: "${reminder?.title}". Provide a highly motivational feedback!`));
-        input.activeAgent = 'goalAgent';
+    // Invoke goalAgent for feedback ONLY if it's a checkpoint reminder
+    if (reminder?.checkpointId) {
+        try {
+            const receiver = await TelegramReceiver.fromCtx(ctx, '');
+            const input = await receiver.buildGraphInput();
+            input.messages.push(new HumanMessage(`I just completed my checkpoint reminder: "${reminder.title}". Provide a highly motivational feedback!`));
+            input.activeAgent = 'goalAgent';
 
-        const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
-        const result = await runAgentGraph(input, receiver.llm!);
-        await handleGraphOutput(ctx, thinking, receiver, result);
-    } catch (e) {
-        console.error('Failed to invoke goalAgent for feedback', e);
+            const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
+            const result = await runAgentGraph(input, receiver.llm!);
+            await handleGraphOutput(ctx, thinking, receiver, result);
+        } catch (e) {
+            console.error('Failed to invoke goalAgent for feedback', e);
+        }
     }
 });
 
@@ -185,18 +187,20 @@ cobraineComposer.callbackQuery(/^reminder:snooze:/, async (ctx) => {
     }
     await ctx.answerCallbackQuery({ text: `Snoozed for ${minutes} minutes.` });
 
-    // Invoke goalAgent for feedback
-    try {
-        const receiver = await TelegramReceiver.fromCtx(ctx, '');
-        const input = await receiver.buildGraphInput();
-        input.messages.push(new HumanMessage(`I just snoozed my checkpoint reminder: "${reminder?.title}" for ${minutes} minutes. Be pushy and remind me not to stall.`));
-        input.activeAgent = 'goalAgent';
+    // Invoke goalAgent for feedback ONLY if it's a checkpoint reminder
+    if (reminder?.checkpointId) {
+        try {
+            const receiver = await TelegramReceiver.fromCtx(ctx, '');
+            const input = await receiver.buildGraphInput();
+            input.messages.push(new HumanMessage(`I just snoozed my checkpoint reminder: "${reminder.title}" for ${minutes} minutes. Be pushy and remind me not to stall.`));
+            input.activeAgent = 'goalAgent';
 
-        const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
-        const result = await runAgentGraph(input, receiver.llm!);
-        await handleGraphOutput(ctx, thinking, receiver, result);
-    } catch (e) {
-        console.error('Failed to invoke goalAgent for feedback', e);
+            const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
+            const result = await runAgentGraph(input, receiver.llm!);
+            await handleGraphOutput(ctx, thinking, receiver, result);
+        } catch (e) {
+            console.error('Failed to invoke goalAgent for feedback', e);
+        }
     }
 });
 

@@ -3,7 +3,6 @@ import startComposer from "./composer.start";
 import configComposer from "./composer.config";
 import { connectRedis, disconnectRedis } from "./lib/redis";
 import { connectPostgres, closePostgres } from "./lib/postgres";
-import { toolsManager } from "./lib/llm/tools";
 import { bot } from "./lib/telegram";
 import cobraineComposer from "./composer.cobraine";
 
@@ -11,8 +10,7 @@ dotenv.config();
 
 async function main() {
     await connectRedis();
-    await connectPostgres();
-    await toolsManager.init(); // Initialize dynamic tools here!
+    await connectPostgres();// Initialize dynamic tools here!
     await bot.api.setChatMenuButton({
         menu_button: {
             type: "web_app",

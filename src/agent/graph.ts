@@ -16,6 +16,7 @@ import { AskUserPayload } from './tools/tool.ask_user';
 import { UserContext, StateAnnotation } from './state';
 import { Attachment } from './types/types.agent.attachment';
 import { buildGoalAgentNode } from './nodes/node.goalAgent';
+import { buildMainAgentNode } from './nodes/node.mainAgent';
 
 export interface AgentGraphInput {
     messages: BaseMessage[];
@@ -90,13 +91,7 @@ function buildGraph(telegramId: number, chatId: number, llm: ChatOpenAI) {
     const toolNode = new ToolNode(allTools);
     
     const goalAgentNode = buildGoalAgentNode(llmGoal);
-
-    /** Agent node — calls the LLM with the current message history. */
-    async function agentNode(state: typeof StateAnnotation.State) {
-        console.log('\n[🤖 Agent] Running Main Agent...');
-        const response = await llmMain.invoke(state.messages);
-        return { messages: [response] };
-    }
+    const agentNode = buildMainAgentNode(llmMain);
 
     const routeAgent = (state: typeof StateAnnotation.State) => {
         const nextAgent = state.activeAgent === 'goalAgent' ? 'goalAgent' : 'agent';
