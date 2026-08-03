@@ -16,3 +16,18 @@ export const handoverToPlannerTool = tool(
         schema: z.object({}),
     },
 );
+
+export const handoverToMainAgentTool = tool(
+    async () => {
+        return new Command({
+            update: { activeAgent: 'agent' },
+            goto: 'agent',
+        });
+    },
+    {
+        name: 'handover_to_main_agent',
+        description:
+            'Use this tool when you have finished setting up a goal/plan or if the user asks a general question that is unrelated to goal planning. This hands control back to the general assistant.',
+        schema: z.object({}),
+    },
+);

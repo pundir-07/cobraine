@@ -8,8 +8,10 @@ import {
 import { ToolNode, toolsCondition } from '@langchain/langgraph/prebuilt';
 import { ChatOpenAI } from '@langchain/openai';
 import { BaseMessage } from '@langchain/core/messages';
+import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+import { Serialized } from '@langchain/core/load/serializable';
 import { checkpointer } from './checkpointer';
-import { buildAgentTools } from './tools';
+import { buildMainAgentTools, buildGoalAgentTools, buildAllTools } from './tools';
 import { AskUserPayload } from './tools/tool.ask_user';
 import { UserContext, StateAnnotation } from './state';
 import { Attachment } from './types/types.agent.attachment';
@@ -35,6 +37,40 @@ export interface AgentGraphInterrupt {
 
 export type AgentGraphOutput = AgentGraphResult | AgentGraphInterrupt;
 
+class AgentLoggingCallbackHandler extends BaseCallbackHandler {
+    name = 'AgentLoggingCallbackHandler';
+
+    handleToolStart(tool: Serialized, input: string, runId: string, parentRunId?: string, tags?: string[], metadata?: Record<string, unknown>, name?: string) {
+        const toolName = name || (tool as any).kwargs?.name || (tool as any).name || tool.id[tool.id.length - 1];
+        console.log(`\n[🛠️  Tool Started] ${toolName}`);
+        try {
+            const parsed = JSON.parse(input);
+            console.log(`    Input:`, parsed);
+        } catch {
+            console.log(`    Input: ${input}`);
+        }
+    }
+
+    handleToolEnd(output: any) {
+        let strOutput = '';
+        if (typeof output === 'string') {
+            strOutput = output;
+        } else if (output && typeof output === 'object') {
+            strOutput = output.content || JSON.stringify(output);
+        } else {
+            strOutput = String(output);
+        }
+        strOutput = strOutput.replace(/\n/g, ' ');
+        const preview = strOutput.substring(0, 100);
+        console.log(`[✅ Tool Success] ${preview}${strOutput.length > 100 ? '...' : ''}`);
+    }
+
+    handleToolError(err: any) {
+        console.log(`[❌ Tool Error] ${err.message}`);
+    }
+}
+const loggerCallback = new AgentLoggingCallbackHandler();
+
 /**
  * Build and compile a stateful ReAct agent graph for a specific user session.
  *
@@ -44,20 +80,28 @@ export type AgentGraphOutput = AgentGraphResult | AgentGraphInterrupt;
  *   tools → [routeAfterTools] → (agent | goalAgent)
  */
 function buildGraph(telegramId: number, chatId: number, llm: ChatOpenAI) {
-    const tools = buildAgentTools(telegramId, chatId);
-    const llmWithTools = llm.bindTools(tools);
-    const toolNode = new ToolNode(tools);
+    const mainTools = buildMainAgentTools(telegramId, chatId);
+    const goalTools = buildGoalAgentTools(telegramId, chatId);
+    const allTools = buildAllTools(telegramId, chatId);
     
-    const goalAgentNode = buildGoalAgentNode(llmWithTools);
+    const llmMain = llm.bindTools(mainTools);
+    const llmGoal = llm.bindTools(goalTools);
+    
+    const toolNode = new ToolNode(allTools);
+    
+    const goalAgentNode = buildGoalAgentNode(llmGoal);
 
     /** Agent node — calls the LLM with the current message history. */
     async function agentNode(state: typeof StateAnnotation.State) {
-        const response = await llmWithTools.invoke(state.messages);
+        console.log('\n[🤖 Agent] Running Main Agent...');
+        const response = await llmMain.invoke(state.messages);
         return { messages: [response] };
     }
 
     const routeAgent = (state: typeof StateAnnotation.State) => {
-        return state.activeAgent === 'goalAgent' ? 'goalAgent' : 'agent';
+        const nextAgent = state.activeAgent === 'goalAgent' ? 'goalAgent' : 'agent';
+        console.log(`\n[🔀 Router] Routing to: ${nextAgent === 'agent' ? 'Main Agent' : 'Goal Agent'}`);
+        return nextAgent;
     };
 
     const workflow = new StateGraph(StateAnnotation)
@@ -128,7 +172,7 @@ export async function runAgentGraph(input: AgentGraphInput, llm: ChatOpenAI): Pr
             userContext: input.userContext,
             ...(input.activeAgent ? { activeAgent: input.activeAgent } : {})
         },
-        { ...threadConfig(chatId), streamMode: 'values' },
+        { ...threadConfig(chatId), streamMode: 'values', callbacks: [loggerCallback] },
     );
 
     return drainStream(stream);
@@ -148,7 +192,7 @@ export async function resumeAgentGraph(
 
     const stream = await graph.stream(
         new Command({ resume: answer }),
-        { ...threadConfig(chatId), streamMode: 'values' },
+        { ...threadConfig(chatId), streamMode: 'values', callbacks: [loggerCallback] },
     );
 
     return drainStream(stream);

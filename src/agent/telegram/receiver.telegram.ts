@@ -100,7 +100,7 @@ export class TelegramReceiver {
         }
 
         const llm = buildLLM(usageResult.providerConfig);
-        console.log("LLM for this user : ", llm)
+        // console.log("LLM for this user : ", llm)
 
         return new TelegramReceiver(
             telegramId, chatId, messageText, attachments, user,

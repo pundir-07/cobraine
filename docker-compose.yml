@@ -1,0 +1,48 @@
+# docker-compose.yml
+services:
+  postgres:
+    # pgvector/pgvector ships Postgres with the pgvector extension pre-built,
+    # so you don't have to compile it yourself. Tag pinned to a specific
+    # Postgres major version (16) so builds are reproducible.
+    image: pgvector/pgvector:pg16
+    container_name: cobraine-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cobraine
+      POSTGRES_PASSWORD: cobraine_dev_password # fine for local dev; never for prod
+      POSTGRES_DB: cobraine
+    ports:
+      # host:container — lets you connect from psql/a GUI on your machine at
+      # localhost:5432. Change the host side (left number) if 5432 is already
+      # taken by a local Postgres install.
+      - '5432:5432'
+    volumes:
+      # named volume — Docker manages this storage outside the container's
+      # lifecycle. Without this line, `docker compose down` wipes your data.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cobraine -d cobraine']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cobraine-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      # Redis is your queue transport, not long-term storage, but a volume
+      # means queued/in-flight jobs survive a container restart instead of
+      # vanishing if you docker compose down mid-development.
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -43,6 +43,7 @@ cobraineComposer.on(['message:text', "message:document", "message:photo", "messa
         }
 
         if (interrupted) {
+            console.log('Continuing from interrupt')
             // Resume an interrupted graph thread with the user's text/media answer
             interruptedSessions.delete(userId);
             const result = await resumeAgentGraph(
@@ -53,6 +54,7 @@ cobraineComposer.on(['message:text', "message:document", "message:photo", "messa
             );
             await handleGraphOutput(ctx, thinking, receiver, result);
         } else {
+            console.log('Fresh invocation')
             // Fresh invocation
             await MessageService.saveMessage(
                 receiver.user.internalId,
@@ -131,7 +133,7 @@ cobraineComposer.callbackQuery(/^reminder:done:/, async (ctx) => {
         const input = await receiver.buildGraphInput();
         input.messages.push(new HumanMessage(`I just completed my checkpoint reminder: "${reminder?.title}". Provide a highly motivational feedback!`));
         input.activeAgent = 'goalAgent';
-        
+
         const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
         const result = await runAgentGraph(input, receiver.llm!);
         await handleGraphOutput(ctx, thinking, receiver, result);
@@ -142,7 +144,7 @@ cobraineComposer.callbackQuery(/^reminder:done:/, async (ctx) => {
 
 cobraineComposer.callbackQuery(/^reminder:snooze_menu:/, async (ctx) => {
     const reminderId = ctx.callbackQuery.data.replace('reminder:snooze_menu:', '');
-    
+
     const keyboard = new InlineKeyboard()
         .text("15m", `reminder:snooze:15:${reminderId}`)
         .text("30m", `reminder:snooze:30:${reminderId}`)
@@ -189,7 +191,7 @@ cobraineComposer.callbackQuery(/^reminder:snooze:/, async (ctx) => {
         const input = await receiver.buildGraphInput();
         input.messages.push(new HumanMessage(`I just snoozed my checkpoint reminder: "${reminder?.title}" for ${minutes} minutes. Be pushy and remind me not to stall.`));
         input.activeAgent = 'goalAgent';
-        
+
         const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
         const result = await runAgentGraph(input, receiver.llm!);
         await handleGraphOutput(ctx, thinking, receiver, result);
