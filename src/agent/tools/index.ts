@@ -6,6 +6,8 @@ import { askUserTool } from './tool.ask_user';
 import { saveFileTool } from './tool.save_file';
 import { sendFileTool } from './tool.send_file';
 import { searchFilesTool } from './tool.search_files';
+import { handoverToPlannerTool } from './tool.handover';
+import { createPlanTool, createCheckpointTool } from './tool.plan';
 
 /**
  * Build the full set of agent tools for a specific user session.
@@ -27,6 +29,9 @@ export function buildAgentTools(
         saveFileTool(telegramId),
         sendFileTool(chatId),
         searchFilesTool(telegramId),
+        handoverToPlannerTool,
+        createPlanTool(telegramId),
+        createCheckpointTool,
     ];
 }
 

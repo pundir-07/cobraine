@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { Bot } from "grammy";
+import { Bot, InlineKeyboard } from "grammy";
 import dotenv from "dotenv";
 import { connectRedis } from "../lib/redis";
 import { pool } from "../lib/postgres";
@@ -33,10 +33,17 @@ async function main() {
                 return;
             }
 
+            const keyboard = new InlineKeyboard()
+                .text("✅ Done", `reminder:done:${reminderId}`)
+                .text("💤 Snooze", `reminder:snooze_menu:${reminderId}`);
+
             await bot.api.sendMessage(
                 Number(reminder.chatId),
                 `🔔 <b>Reminder</b>\n\n${escapeHtml(reminder.title)}`,
-                { parse_mode: "HTML" },
+                { 
+                    parse_mode: "HTML",
+                    reply_markup: keyboard
+                },
             );
         },
         {
@@ -61,12 +68,12 @@ async function main() {
         const now = new Date().toISOString();
 
         // Update Postgres
-        await pool.query(`UPDATE reminders SET status = 'completed', sent_at = now() WHERE id = $1`, [reminderId]);
+        await pool.query(`UPDATE reminders SET status = 'sent', sent_at = now() WHERE id = $1`, [reminderId]);
 
         // Update Redis cache
         await client.hSet(getReminderKey(reminderId), {
-            status: "completed",
-            completedAt: now,
+            status: "sent",
+            sentAt: now,
             updatedAt: now,
         });
     });

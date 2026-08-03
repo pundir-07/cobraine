@@ -265,6 +265,47 @@ export class ReminderService {
     }
 
     /**
+     * Marks a reminder as completed in Postgres and Redis.
+     */
+    static async completeReminder(id: string): Promise<void> {
+        const redis = await connectRedis();
+        const now = new Date().toISOString();
+
+        await pool.query(`UPDATE reminders SET status = 'completed' WHERE id = $1`, [id]);
+
+        await redis.hSet(ReminderService.getReminderKey(id), {
+            status: "completed",
+            completedAt: now,
+            updatedAt: now,
+        });
+    }
+
+    /**
+     * Snoozes a reminder by updating its remind_at time and rescheduling the job.
+     */
+    static async snoozeReminder(id: string, newRemindAt: Date): Promise<void> {
+        const redis = await connectRedis();
+        const now = new Date().toISOString();
+
+        await pool.query(`UPDATE reminders SET remind_at = $1, status = 'pending' WHERE id = $2`, [newRemindAt.toISOString(), id]);
+
+        await redis.hSet(ReminderService.getReminderKey(id), {
+            remindAt: newRemindAt.toISOString(),
+            status: "scheduled",
+            updatedAt: now,
+        });
+
+        await ReminderService.remindersQueue.add(
+            "send-reminder",
+            { reminderId: id },
+            {
+                jobId: id,
+                delay: Math.max(0, newRemindAt.getTime() - Date.now()),
+            },
+        );
+    }
+
+    /**
      * Cancels a scheduled reminder.
      * Updates the status to "cancelled" in Postgres and Redis, and removes the job.
      */
