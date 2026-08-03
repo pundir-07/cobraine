@@ -6,6 +6,10 @@ import { askUserTool } from './tool.ask_user';
 import { saveFileTool } from './tool.save_file';
 import { sendFileTool } from './tool.send_file';
 import { searchFilesTool } from './tool.search_files';
+import { updateFileTool } from './tool.update_file';
+import { deleteFileTool } from './tool.delete_file';
+import { deleteFilesByTypeTool } from './tool.delete_files_by_type';
+import { fetchFilesTool } from './tool.fetch_files';
 import { handoverToPlannerTool, handoverToMainAgentTool } from './tool.handover';
 import { createPlanTool, createCheckpointTool } from './tool.plan';
 
@@ -28,6 +32,10 @@ export function buildMainAgentTools(
         saveFileTool(telegramId),
         sendFileTool(chatId),
         searchFilesTool(telegramId),
+        updateFileTool(telegramId),
+        deleteFileTool(telegramId),
+        deleteFilesByTypeTool(telegramId),
+        fetchFilesTool(telegramId),
         handoverToPlannerTool,
     ];
 }

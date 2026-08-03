@@ -210,6 +210,180 @@ export class FileService {
         };
     }
 
+    /**
+     * Fetch multiple files by type, description, or mime_type.
+     * Supports pagination via offset and limit (default 10).
+     */
+    static async fetchFiles(
+        telegramId: number,
+        filters: { type?: string; description?: string; mimeType?: string },
+        limit = 10,
+        offset = 0
+    ): Promise<FileRow[]> {
+        const client = await pool.connect();
+        try {
+            const userRes = await client.query(
+                `SELECT id FROM users WHERE telegram_id = $1`,
+                [telegramId],
+            );
+            if (userRes.rows.length === 0) return [];
+            const userUuid: string = userRes.rows[0].id;
+
+            let queryStr = `SELECT * FROM files WHERE user_id = $1 AND status = 'active'`;
+            const params: any[] = [userUuid];
+            let paramIndex = 2;
+
+            if (filters.type) {
+                queryStr += ` AND type = $${paramIndex++}`;
+                params.push(filters.type);
+            }
+            if (filters.mimeType) {
+                queryStr += ` AND mime_type = $${paramIndex++}`;
+                params.push(filters.mimeType);
+            }
+            if (filters.description) {
+                queryStr += ` AND description ILIKE $${paramIndex++}`;
+                params.push(`%${filters.description}%`);
+            }
+
+            queryStr += ` ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+            params.push(limit, offset);
+
+            const searchRes = await client.query(queryStr, params);
+            return searchRes.rows;
+        } catch (error) {
+            console.error('FileService.fetchFiles error:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    /**
+     * Update a file's description (and re-embed it).
+     */
+    static async updateFile(
+        fileUuid: string,
+        telegramId: number,
+        newDescription: string
+    ): Promise<{ ok: boolean; error?: string }> {
+        const client = await pool.connect();
+        try {
+            const userRes = await client.query(
+                `SELECT id FROM users WHERE telegram_id = $1`,
+                [telegramId],
+            );
+            if (userRes.rows.length === 0) return { ok: false, error: 'User not found' };
+            const userUuid: string = userRes.rows[0].id;
+
+            const embeddingVector = await voyageEmbedding.embed(newDescription);
+            const vectorStr = `[${embeddingVector.join(',')}]`;
+
+            const updateRes = await client.query(
+                `UPDATE files 
+                 SET description = $1, description_embedding = $2::vector, updated_at = now() 
+                 WHERE id = $3 AND user_id = $4`,
+                [newDescription, vectorStr, fileUuid, userUuid]
+            );
+
+            if (updateRes.rowCount === 0) {
+                return { ok: false, error: 'File not found or access denied' };
+            }
+            return { ok: true };
+        } catch (error) {
+            console.error('FileService.updateFile error:', error);
+            return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        } finally {
+            client.release();
+        }
+    }
+
+    /**
+     * Hard delete a file from the database and the local storage.
+     */
+    static async deleteFile(
+        fileUuid: string,
+        telegramId: number
+    ): Promise<{ ok: boolean; error?: string }> {
+        const client = await pool.connect();
+        try {
+            const userRes = await client.query(
+                `SELECT id FROM users WHERE telegram_id = $1`,
+                [telegramId],
+            );
+            if (userRes.rows.length === 0) return { ok: false, error: 'User not found' };
+            const userUuid: string = userRes.rows[0].id;
+
+            const res = await client.query(
+                `DELETE FROM files WHERE id = $1 AND user_id = $2 RETURNING local_path`,
+                [fileUuid, userUuid]
+            );
+
+            if (res.rowCount === 0) {
+                return { ok: false, error: 'File not found or access denied' };
+            }
+
+            const localPath = res.rows[0].local_path;
+            if (localPath && fs.existsSync(localPath)) {
+                await fs.promises.unlink(localPath).catch(err => {
+                    console.warn(`FileService.deleteFile: failed to unlink local file ${localPath}:`, err);
+                });
+            }
+
+            return { ok: true };
+        } catch (error) {
+            console.error('FileService.deleteFile error:', error);
+            return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        } finally {
+            client.release();
+        }
+    }
+
+    /**
+     * Delete all files of a specific type for a user.
+     */
+    static async deleteFilesByType(
+        telegramId: number,
+        type: FileType
+    ): Promise<{ ok: boolean; count?: number; error?: string }> {
+        const client = await pool.connect();
+        try {
+            const userRes = await client.query(
+                `SELECT id FROM users WHERE telegram_id = $1`,
+                [telegramId],
+            );
+            if (userRes.rows.length === 0) return { ok: false, error: 'User not found' };
+            const userUuid: string = userRes.rows[0].id;
+
+            // Fetch local paths before deleting
+            const pathsRes = await client.query(
+                `SELECT local_path FROM files WHERE user_id = $1 AND type = $2 AND local_path IS NOT NULL`,
+                [userUuid, type]
+            );
+
+            const res = await client.query(
+                `DELETE FROM files WHERE user_id = $1 AND type = $2`,
+                [userUuid, type]
+            );
+
+            // Delete local files
+            for (const row of pathsRes.rows) {
+                if (row.local_path && fs.existsSync(row.local_path)) {
+                    await fs.promises.unlink(row.local_path).catch(err => {
+                        console.warn(`FileService.deleteFilesByType: failed to unlink ${row.local_path}:`, err);
+                    });
+                }
+            }
+
+            return { ok: true, count: res.rowCount ?? 0 };
+        } catch (error) {
+            console.error('FileService.deleteFilesByType error:', error);
+            return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        } finally {
+            client.release();
+        }
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     /**
