@@ -21,5 +21,9 @@ export const config = {
     baseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1",
     apiKey: process.env.DEEPSEEK_API_KEY ?? "",
     defaultModel: process.env.DEEPSEEK_DEFAULT_MODEL ?? "deepseek-chat",
+  },
+  voyage: {
+    apiKey: process.env.VOYAGE_API_KEY ?? "",
+    embeddingModel: process.env.VOYAGE_EMBEDDING_MODEL ?? "voyage-3",
   }
 } as const;

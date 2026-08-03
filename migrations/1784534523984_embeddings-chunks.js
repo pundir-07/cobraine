@@ -20,12 +20,12 @@ export const up = (pgm) => {
         UNIQUE (item_id, chunk_index)
         );
 
-        -- 768 = nomic-embed-text (Ollama) dims. If you ever switch models, dimension
+        -- 1024 = voyage-3 dims. If you ever switch models, dimension
         -- must match exactly or inserts will fail — pgvector columns are fixed-width.
         CREATE TABLE embeddings (
         chunk_id      UUID PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
-        embedding     VECTOR(768) NOT NULL,
-        model         TEXT NOT NULL DEFAULT 'nomic-embed-text',
+        embedding     VECTOR(1024) NOT NULL,
+        model         TEXT NOT NULL DEFAULT 'voyage-3',
         created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
         );
 

@@ -1,5 +1,5 @@
 import { pool } from "../lib/postgres";
-import { ollamaEmbedding } from "../lib/embeddings/ollama";
+import { voyageEmbedding } from "../lib/embeddings/voyage";
 
 export interface SaveItemInput {
     telegramId: number;
@@ -31,11 +31,11 @@ export class ItemService {
             }
             currentChunk += (currentChunk ? "\n\n" : "") + paragraph;
         }
-        
+
         if (currentChunk.trim()) {
             chunks.push(currentChunk.trim());
         }
-        
+
         // If a single paragraph is longer than the max, split it by characters as fallback
         const finalChunks: string[] = [];
         for (const chunk of chunks) {
@@ -67,44 +67,44 @@ export class ItemService {
 
             // 2. Insert the item
             const metadata = input.metadata ? JSON.stringify(input.metadata) : '{}';
-            
+
             const itemRes = await client.query(`
                 INSERT INTO items (user_id, type, title, raw_content, source_url, telegram_file_id, mime_type, metadata)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
             `, [
-                userUuid, 
-                input.type, 
-                input.title || null, 
-                input.rawContent || null, 
-                input.sourceUrl || null, 
-                input.telegramFileId || null, 
-                input.mimeType || null, 
+                userUuid,
+                input.type,
+                input.title || null,
+                input.rawContent || null,
+                input.sourceUrl || null,
+                input.telegramFileId || null,
+                input.mimeType || null,
                 metadata
             ]);
-            
+
             const itemId = itemRes.rows[0].id;
 
             // 3. Process embeddings if we have content
             if (input.rawContent) {
                 const chunks = ItemService.chunkText(input.rawContent);
-                
+
                 if (chunks.length > 0) {
-                    const embeddings = await ollamaEmbedding.embedBatch(chunks);
+                    const embeddings = await voyageEmbedding.embedBatch(chunks);
 
                     for (let i = 0; i < chunks.length; i++) {
                         const chunkContent = chunks[i];
                         const embedding = embeddings[i];
-                        
+
                         // Insert chunk
                         const chunkRes = await client.query(`
                             INSERT INTO chunks (item_id, chunk_index, content)
                             VALUES ($1, $2, $3)
                             RETURNING id
                         `, [itemId, i, chunkContent]);
-                        
+
                         const chunkId = chunkRes.rows[0].id;
-                        
+
                         // Insert embedding using pgvector. Ensure embedding vector format: '[1,2,3]'
                         const vectorStr = `[${embedding.join(',')}]`;
                         await client.query(`
@@ -129,7 +129,7 @@ export class ItemService {
         const client = await pool.connect();
         try {
             // Embed the query
-            const queryEmbedding = await ollamaEmbedding.embed(query);
+            const queryEmbedding = await voyageEmbedding.embed(query);
             const vectorStr = `[${queryEmbedding.join(',')}]`;
 
             const userRes = await client.query(`SELECT id FROM users WHERE telegram_id = $1`, [telegramId]);

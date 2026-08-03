@@ -17,7 +17,7 @@ export const up = (pgm) => {
             user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             type                  file_type NOT NULL,
             description           TEXT NOT NULL,
-            description_embedding VECTOR(768),
+            description_embedding VECTOR(1024),
             telegram_file_id      TEXT,
             local_path            TEXT,
             original_filename     TEXT,
@@ -34,7 +34,7 @@ export const up = (pgm) => {
         CREATE INDEX idx_files_user_status ON files (user_id, status);
 
         -- HNSW index for fast approximate cosine similarity search on description
-        -- 768 dims matches nomic-embed-text (same model used by chunks/embeddings)
+        -- 1024 dims matches voyage-3 (same model used by chunks/embeddings)
         CREATE INDEX idx_files_description_embedding
             ON files USING hnsw (description_embedding vector_cosine_ops)
             WITH (m = 16, ef_construction = 64);

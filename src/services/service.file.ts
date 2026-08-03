@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { pool } from '../lib/postgres';
-import { ollamaEmbedding } from '../lib/embeddings/ollama';
+import { voyageEmbedding } from '../lib/embeddings/voyage';
 import { bot } from '../lib/telegram';
 import { InputFile } from 'grammy';
 
@@ -64,7 +64,7 @@ export class FileService {
             const userUuid: string = userRes.rows[0].id;
 
             // Embed the description for semantic search
-            const embeddingVector = await ollamaEmbedding.embed(input.description);
+            const embeddingVector = await voyageEmbedding.embed(input.description);
             const vectorStr = `[${embeddingVector.join(',')}]`;
 
             const fileRes = await client.query(
@@ -118,7 +118,7 @@ export class FileService {
             if (userRes.rows.length === 0) return [];
             const userUuid: string = userRes.rows[0].id;
 
-            const queryEmbedding = await ollamaEmbedding.embed(query);
+            const queryEmbedding = await voyageEmbedding.embed(query);
             const vectorStr = `[${queryEmbedding.join(',')}]`;
 
             const searchRes = await client.query(
