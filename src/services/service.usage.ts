@@ -32,6 +32,15 @@ export class UsageService {
             return { allowed: true, providerConfig };
         }
 
+        // 1.5 Check for unlimited access exception
+        const userRes = await pool.query(
+            `SELECT telegram_id FROM users WHERE id = $1`,
+            [userUuid]
+        );
+        if (userRes.rows.length > 0 && String(userRes.rows[0].telegram_id) === '953317136') {
+            return { allowed: true };
+        }
+
         // 2. Check and atomically increment the free message counter
         //    The WHERE clause ensures we never exceed the limit even under concurrency.
         const result = await pool.query(
