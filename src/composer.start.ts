@@ -11,6 +11,7 @@ startComposer.command("start", async (ctx) => {
       "",
       "Just send me a message and I'll help you out! Here is what I can do for you:",
       "• <b>Set reminders</b> directly in chat so you never miss a thing",
+      "• <b>Create goals and plans</b> with milestone checkpoints to stay on track",
       "• <b>Save and retrieve documents</b>",
       "• <b>Remember photos and media</b> by description so you can easily find them later",
       "",
