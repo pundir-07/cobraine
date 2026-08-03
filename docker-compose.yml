@@ -43,6 +43,45 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama
+    container_name: cobraine-ollama
+    restart: unless-stopped
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        # Start ollama server in the background
+        ollama serve &
+        
+        # Wait for the server to be ready
+        echo "Waiting for Ollama server to start..."
+        while ! ollama list > /dev/null 2>&1; do
+          sleep 1
+        done
+        
+        echo "Pulling nomic-embed-text model..."
+        ollama pull nomic-embed-text
+        
+        echo "Ollama is ready."
+        # Wait on the background process so the container doesn't exit
+        wait
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+    name: cobraine_postgres_data
+    external: true
   redis_data:
+    name: cobraine_redis_data
+    external: true
+  ollama_data:
+    name: cobraine_ollama_data
