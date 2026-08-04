@@ -8,6 +8,7 @@ export class User {
     public firstName: string;
     public lastName: string | null;
     public languageCode: string;
+    public readonly timezone: string; // IANA timezone, e.g. "Asia/Kolkata"
     public readonly freeMessagesUsed: number;
 
     // 2. Private constructor forces the use of factory methods
@@ -17,6 +18,7 @@ export class User {
         firstName: string;
         lastName?: string | null;
         languageCode?: string | null;
+        timezone?: string;
         freeMessagesUsed?: number;
     }) {
         this.internalId = params.internalId;
@@ -24,6 +26,7 @@ export class User {
         this.firstName = params.firstName;
         this.lastName = params.lastName || null;
         this.languageCode = params.languageCode || 'en';
+        this.timezone = params.timezone || 'UNSET';
         this.freeMessagesUsed = params.freeMessagesUsed ?? 0;
     }
 
@@ -35,18 +38,20 @@ export class User {
             firstName: dbRecord.firstName || "", // Fallback if somehow null
             lastName: null, // Note: The current DB schema might not have last_name mapped to UserRecord, we keep it null
             languageCode: 'en',
+            timezone: dbRecord.timezone,
             freeMessagesUsed: dbRecord.freeMessagesUsed ?? 0,
         });
     }
 
     // 4. FACTORY: Create from Telegram payload + Database UUID
-    static fromTelegram(tgUser: BotUser, internalId: string): User {
+    static fromTelegram(tgUser: BotUser, internalId: string, timezone?: string): User {
         return new User({
             internalId: internalId,
             telegramId: tgUser.telegramUserId,
             firstName: tgUser.first_name,
             lastName: tgUser.last_name,
             languageCode: tgUser.language_code,
+            timezone,
         });
     }
 

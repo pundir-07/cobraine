@@ -1,16 +1,22 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { ReminderService } from '../../services/service.reminder';
+import { UserService } from '../../services/service.user';
+import { formatDateTimeForUser } from '../../utils/utils.time';
 
 export const setReminderTool = (userId: number, chatId: number) =>
     tool(
         async ({ title, date, time, checkpointId }) => {
+            const user = await UserService.getUserByTelegramId(userId);
+            const timezone = user?.timezone ?? 'UNSET';
+
             const result = await ReminderService.createReminderFromStrings({
                 chatId,
                 userId,
                 title,
                 date,
                 time,
+                timezone,
                 checkpointId,
             });
             return result.ok ? result.display : result.error;
@@ -45,6 +51,9 @@ export const listRemindersTool = (userId: number) =>
     tool(
         async () => {
             try {
+                const user = await UserService.getUserByTelegramId(userId);
+                const timezone = user?.timezone ?? 'UNSET';
+
                 const reminders = await ReminderService.listUserReminders(userId);
                 const active = reminders.filter(
                     (r) => r.status === 'scheduled' || r.status === 'processing',
@@ -56,7 +65,7 @@ export const listRemindersTool = (userId: number) =>
 
                 const lines = active.map((r, i) => {
                     const when = new Date(r.remindAt);
-                    return `${i + 1}. "${r.title}" — ${when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} at ${when.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })}`;
+                    return `${i + 1}. "${r.title}" — ${formatDateTimeForUser(when, timezone)}`;
                 });
                 return ['Your scheduled reminders:', ...lines].join('\n');
             } catch (error) {

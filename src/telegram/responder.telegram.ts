@@ -1,5 +1,5 @@
 import { Context, InlineKeyboard } from 'grammy';
-import { AskUserPayload } from '../tools/tool.ask_user';
+import { AskUserPayload } from '../agent/tools/tool.ask_user';
 
 interface ThinkingMessage {
     chatId: number;
@@ -78,7 +78,7 @@ export class TelegramResponder {
     ): Promise<void> {
         if (payload.options && payload.options.length > 0) {
             const keyboard = new InlineKeyboard();
-            payload.options.forEach((option) => {
+            payload.options.forEach((option: string) => {
                 keyboard.text(option, `cobraine:answer:${option}`).row();
             });
 

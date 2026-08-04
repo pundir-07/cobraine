@@ -4,6 +4,8 @@ import { TelegramResponder } from './telegram/responder.telegram';
 import { runAgentGraph, resumeAgentGraph } from './agent/graph';
 import { MessageService } from './services/service.message';
 import { ReminderService } from './services/service.reminder';
+import { UserService } from './services/service.user';
+import { formatTimeForUser } from './utils/utils.time';
 import { InlineKeyboard } from 'grammy';
 import { HumanMessage } from '@langchain/core/messages';
 
@@ -178,10 +180,12 @@ cobraineComposer.callbackQuery(/^reminder:snooze:/, async (ctx) => {
     await ReminderService.snoozeReminder(reminderId, newRemindAt);
 
     const reminder = await ReminderService.getReminder(reminderId);
+    const user = await UserService.getUserByTelegramId(ctx.from!.id);
+    const tz = user?.timezone && user.timezone !== 'UNSET' ? user.timezone : 'UTC';
 
     // Update message
     try {
-        await ctx.editMessageText(`💤 <b>Snoozed Reminder</b>\n\n${reminder?.title || 'Unknown reminder'}\n<i>Snoozed until ${newRemindAt.toLocaleTimeString()}</i>`, { parse_mode: 'HTML' });
+        await ctx.editMessageText(`💤 <b>Snoozed Reminder</b>\n\n${reminder?.title || 'Unknown reminder'}\n<i>Snoozed until ${formatTimeForUser(newRemindAt, tz)}</i>`, { parse_mode: 'HTML' });
     } catch (e) {
         // ignore
     }

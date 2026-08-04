@@ -2,7 +2,7 @@ import { Queue } from "bullmq";
 import { connectRedis } from "../lib/redis";
 import { pool } from "../lib/postgres";
 import { CreateReminderInput, ReminderRecord } from "../types/types.reminder";
-import { parseDate, parseTime } from "../utils/utils.reminder";
+import { parseDate, parseTime, formatReminderDateTime } from "../utils/utils.reminder";
 
 /**
  * Service for managing reminders.
@@ -120,16 +120,17 @@ export class ReminderService {
             title: string;
             date: string;
             time: string;
+            timezone: string;
             checkpointId?: string;
         },
     ): Promise<{ ok: true; reminder: ReminderRecord; display: string } | { ok: false; error: string }> {
-        const { chatId, userId, title, date: dateStr, time: timeStr, checkpointId } = input;
+        const { chatId, userId, title, date: dateStr, time: timeStr, timezone, checkpointId } = input;
 
         if (!title || !dateStr || !timeStr) {
             return { ok: false, error: "Missing required fields: title, date, and time are all needed." };
         }
 
-        const date = parseDate(dateStr);
+        const date = parseDate(dateStr, timezone);
 
         if (!date) {
             return {
@@ -138,7 +139,7 @@ export class ReminderService {
             };
         }
 
-        const remindAt = parseTime(timeStr, date);
+        const remindAt = parseTime(timeStr, date, timezone);
         console.log("Inferred time:", remindAt);
 
         if (!remindAt) {
@@ -165,7 +166,7 @@ export class ReminderService {
 
             const display = [
                 `Reminder set: "${title}"`,
-                `When: ${remindAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} at ${remindAt.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })}`,
+                `When: ${formatReminderDateTime(remindAt, timezone)}`,
             ].join("\n");
             console.log("Reminder set", reminder);
             return { ok: true, reminder, display };

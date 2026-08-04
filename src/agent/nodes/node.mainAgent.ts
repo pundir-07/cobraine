@@ -1,6 +1,8 @@
 import { Runnable } from '@langchain/core/runnables';
 import { StateAnnotation } from '../state';
 import { SystemMessage } from '@langchain/core/messages';
+import { getTimeContext, formatTimeContextForLLM, TIMEZONE_UNSET } from '../../utils/utils.time';
+import { UserService } from '../../services/service.user';
 
 const BASE_PROMPT =
   `You are Cobraine, the user's personal second brain — a warm, attentive companion who lives in their Telegram 
@@ -37,10 +39,21 @@ const BASE_PROMPT =
   You can use markdown headers (e.g. ##) to organize longer responses.
   Keep messages conversational, easy to skim on a mobile phone screen, and well-spaced with paragraph breaks.`;
 
-function getEnvirontmentDetails() {
+function getEnvirontmentDetails(timezone: string) {
+  if (timezone === TIMEZONE_UNSET) {
+    return `
+  CRITICAL INSTRUCTION: The user's timezone is not configured.
+  Before you can set any reminders or answer time-related questions, you MUST ask the user what timezone they are in (e.g. "Which city or timezone are you in?").
+  Once they reply, immediately use the \`set_user_timezone\` tool to save it. DO NOT assume their timezone.
+  `;
+  }
+
+  const timeCtx = getTimeContext(timezone);
+  if (!timeCtx) return ''; // fallback if it was somehow unset
+
   return `
   You need to refer to these environment details to help the user.
-  The current User Time is: ${new Date().toString()}.
+  ${formatTimeContextForLLM(timeCtx)}
   `;
 }
 
@@ -49,8 +62,11 @@ export function buildMainAgentNode(llmWithTools: Runnable<any, any>) {
     console.log('\n[🤖 Agent] Running Main Agent...');
     const messages = state.messages;
 
+    const user = await UserService.getUserByTelegramId(state.userContext.telegramId);
+    const timezone = user?.timezone ?? TIMEZONE_UNSET;
+
     const additionalMetadata = `User Name: ${state.userContext.userFullName}\nLanguage: ${state.userContext.languageCode ?? 'en'}`;
-    const environmentDetails = getEnvirontmentDetails()
+    const environmentDetails = getEnvirontmentDetails(timezone);
     console.log("ENVIRONMENT DETIALS: ", environmentDetails)
     const systemContent = [BASE_PROMPT, environmentDetails, `ADDITIONAL METADATA:\n\n${additionalMetadata}`].join("\n\n");
     const systemMessage = new SystemMessage(systemContent);

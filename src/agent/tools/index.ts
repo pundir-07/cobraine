@@ -12,6 +12,7 @@ import { deleteFilesByTypeTool } from './tool.delete_files_by_type';
 import { fetchFilesTool } from './tool.fetch_files';
 import { handoverToPlannerTool, handoverToMainAgentTool } from './tool.handover';
 import { createPlanTool, createCheckpointTool } from './tool.plan';
+import { setUserTimezoneTool } from './tool.set_timezone';
 
 /**
  * Build the full set of agent tools for a specific user session.
@@ -38,6 +39,7 @@ export function buildMainAgentTools(
         deleteFilesByTypeTool(telegramId),
         fetchFilesTool(telegramId),
         handoverToPlannerTool,
+        setUserTimezoneTool(telegramId),
     ];
 }
 
@@ -52,6 +54,7 @@ export function buildGoalAgentTools(
         listRemindersTool(telegramId),
         handoverToMainAgentTool,
         askUserTool,
+        setUserTimezoneTool(telegramId),
     ];
 }
 
