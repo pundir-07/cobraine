@@ -52,21 +52,12 @@ const BASE_PROMPT =
   5. Remind the user that they will receive reminders for their checkpoints, which they must mark as Done or Snooze.
   6. When invoked to provide feedback (e.g., when a user marks a milestone as Done or Snoozed), respond directly based on the context. If they snoozed, be pushy and remind them not to stall. If they completed it, be highly motivational.`;
 
-function getEnvirontmentDetails(timezone: string) {
-  if (timezone === TIMEZONE_UNSET) {
-    return `
-  CRITICAL INSTRUCTION: The user's timezone is not configured.
-  Before you can set any reminders or answer time-related questions, you MUST ask the user what timezone they are in (e.g. "Which city or timezone are you in?").
-  Once they reply, immediately use the \`set_user_timezone\` tool to save it. DO NOT assume their timezone.
-  `;
-  }
-
-  const timeCtx = getTimeContext(timezone);
-  if (!timeCtx) return ''; // fallback if it was somehow unset
-
+function getEnvirontmentDetails() {
   return `
-  You need to refer to these environment details to help the user.
-  ${formatTimeContextForLLM(timeCtx)}
+  CRITICAL TEMPORAL INSTRUCTION:
+  You DO NOT inherently know the current time, date, or the user's timezone.
+  You MUST mandatorily use the \`get_time\` tool for all temporal understanding of "now", "today", "tomorrow", "yesterday", or when scheduling reminders.
+  If the tool returns that the user's timezone is 'UNSET', you MUST ask the user what timezone they are in (e.g., "Which city or timezone are you in?") and then use the \`set_user_timezone\` tool to save it. DO NOT assume their timezone.
   `;
 }
 
@@ -75,11 +66,8 @@ export function buildMainAgentNode(llmWithTools: Runnable<any, any>) {
     console.log('\n[🤖 Agent] Running Main Agent...');
     const messages = state.messages;
 
-    const user = await UserService.getUserByTelegramId(state.userContext.telegramId);
-    const timezone = user?.timezone ?? TIMEZONE_UNSET;
-
     const additionalMetadata = `User Name: ${state.userContext.userFullName}\nLanguage: ${state.userContext.languageCode ?? 'en'}`;
-    const environmentDetails = getEnvirontmentDetails(timezone);
+    const environmentDetails = getEnvirontmentDetails();
     console.log("ENVIRONMENT DETIALS: ", environmentDetails)
     const systemContent = [BASE_PROMPT, environmentDetails, `ADDITIONAL METADATA:\n\n${additionalMetadata}`].join("\n\n");
     const systemMessage = new SystemMessage(systemContent);

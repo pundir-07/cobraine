@@ -12,6 +12,7 @@ import { deleteFilesByTypeTool } from './tool.delete_files_by_type';
 import { fetchFilesTool } from './tool.fetch_files';
 import { createPlanTool, createCheckpointTool } from './tool.plan';
 import { setUserTimezoneTool } from './tool.set_timezone';
+import { getTimeTool } from './tool.get_time';
 
 /**
  * Build the complete set of agent tools for a specific user session.
@@ -40,5 +41,6 @@ export function buildAgentTools(
         createPlanTool(telegramId),
         createCheckpointTool,
         setUserTimezoneTool(telegramId),
+        getTimeTool(telegramId),
     ];
 }

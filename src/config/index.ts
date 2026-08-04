@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { consola } from "consola";
+import consola from "consola";
 import chalk from "chalk"
 dotenv.config();
 

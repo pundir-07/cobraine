@@ -60,7 +60,7 @@ export function getTimeContext(userTimezone: string): TimeContext | null {
  *   Current user local time:
  *   2026-08-04T13:13:35+05:30
  */
-export function formatTimeContextForLLM(ctx: TimeContext): string {
+export function _formatTimeContextForLLM(ctx: TimeContext): string {
     return [
         `Current UTC time:`,
         ctx.utcNow,
@@ -71,6 +71,19 @@ export function formatTimeContextForLLM(ctx: TimeContext): string {
         `Current user local time:`,
         ctx.userLocalTime,
     ].join('\n');
+}
+export function formatTimeContextForLLM(ctx: TimeContext): string {
+    return `## CURRENT TIME
+
+The current local date and time is:
+${ctx.userLocalTime}
+
+Timezone:
+${ctx.userTimezone}
+
+This timestamp is authoritative.
+Always use it when calculating reminders, durations, "today", "tomorrow", or relative times.
+Ignore any internal knowledge of the current date or time.`
 }
 
 // ---------------------------------------------------------------------------
