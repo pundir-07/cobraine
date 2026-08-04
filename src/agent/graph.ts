@@ -11,17 +11,15 @@ import { BaseMessage } from '@langchain/core/messages';
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { Serialized } from '@langchain/core/load/serializable';
 import { checkpointer } from './checkpointer';
-import { buildMainAgentTools, buildGoalAgentTools, buildAllTools } from './tools';
+import { buildAgentTools } from './tools';
 import { AskUserPayload } from './tools/tool.ask_user';
 import { UserContext, StateAnnotation } from './state';
 import { Attachment } from './types/types.agent.attachment';
-import { buildGoalAgentNode } from './nodes/node.goalAgent';
 import { buildMainAgentNode } from './nodes/node.mainAgent';
 
 export interface AgentGraphInput {
     messages: BaseMessage[];
     userContext: UserContext;
-    activeAgent?: string;
     /** Attachments extracted from the Telegram message, if any. */
     attachments?: Attachment[];
 }
@@ -75,44 +73,21 @@ const loggerCallback = new AgentLoggingCallbackHandler();
 /**
  * Build and compile a stateful ReAct agent graph for a specific user session.
  *
- * Graph topology:
- *   START → [routeAgent] → (agent | goalAgent)
- *   (agent | goalAgent) → (toolsCondition) → tools
- *   tools → [routeAfterTools] → (agent | goalAgent)
+ * Graph topology (single agent):
+ *   START → agent → (toolsCondition) → tools → agent → … → END
  */
 function buildGraph(telegramId: number, chatId: number, llm: ChatOpenAI) {
-    const mainTools = buildMainAgentTools(telegramId, chatId);
-    const goalTools = buildGoalAgentTools(telegramId, chatId);
-    const allTools = buildAllTools(telegramId, chatId);
-    
-    const llmMain = llm.bindTools(mainTools);
-    const llmGoal = llm.bindTools(goalTools);
-    
-    const toolNode = new ToolNode(allTools);
-    
-    const goalAgentNode = buildGoalAgentNode(llmGoal);
-    const agentNode = buildMainAgentNode(llmMain);
-
-    const routeAgent = (state: typeof StateAnnotation.State) => {
-        const nextAgent = state.activeAgent === 'goalAgent' ? 'goalAgent' : 'agent';
-        console.log(`\n[🔀 Router] Routing to: ${nextAgent === 'agent' ? 'Main Agent' : 'Goal Agent'}`);
-        return nextAgent;
-    };
+    const tools = buildAgentTools(telegramId, chatId);
+    const llmWithTools = llm.bindTools(tools);
+    const toolNode = new ToolNode(tools);
+    const agentNode = buildMainAgentNode(llmWithTools);
 
     const workflow = new StateGraph(StateAnnotation)
         .addNode('agent', agentNode)
-        .addNode('goalAgent', goalAgentNode)
         .addNode('tools', toolNode)
-        .addConditionalEdges(START, routeAgent, {
-            agent: 'agent',
-            goalAgent: 'goalAgent',
-        })
+        .addEdge(START, 'agent')
         .addConditionalEdges('agent', toolsCondition)
-        .addConditionalEdges('goalAgent', toolsCondition)
-        .addConditionalEdges('tools', routeAgent, {
-            agent: 'agent',
-            goalAgent: 'goalAgent',
-        });
+        .addEdge('tools', 'agent');
 
     return workflow.compile({ checkpointer });
 }
@@ -165,7 +140,6 @@ export async function runAgentGraph(input: AgentGraphInput, llm: ChatOpenAI): Pr
         { 
             messages: input.messages, 
             userContext: input.userContext,
-            ...(input.activeAgent ? { activeAgent: input.activeAgent } : {})
         },
         { ...threadConfig(chatId), streamMode: 'values', callbacks: [loggerCallback] },
     );

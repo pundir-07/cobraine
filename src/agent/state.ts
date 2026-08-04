@@ -26,10 +26,7 @@ export const StateAnnotation = Annotation.Root({
             userFullName: 'User',
         }),
     }),
-    activeAgent: Annotation<string>({
-        reducer: (_, y) => y,
-        default: () => 'main',
-    }),
 });
 
 export type State = typeof StateAnnotation.State;
+

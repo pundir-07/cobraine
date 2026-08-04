@@ -13,11 +13,11 @@ async function main() {
     await connectPostgres();// Initialize dynamic tools here!
     await bot.api.setChatMenuButton({
         menu_button: {
-            type: "web_app",
-            text: "Open Cobraine",
-            web_app: {
-                url: process.env.WEB_APP_URL!,
-            },
+            type: "commands",
+            // text: "Open Cobraine",
+            // web_app: {
+            //     url: process.env.WEB_APP_URL!,
+            // },
         },
     });
     await bot.api.setMyCommands([

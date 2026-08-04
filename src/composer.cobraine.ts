@@ -129,19 +129,18 @@ cobraineComposer.callbackQuery(/^reminder:done:/, async (ctx) => {
     }
     await ctx.answerCallbackQuery({ text: 'Marked as done!' });
 
-    // Invoke goalAgent for feedback ONLY if it's a checkpoint reminder
+    // Invoke agent for motivational feedback if it's a checkpoint reminder
     if (reminder?.checkpointId) {
         try {
             const receiver = await TelegramReceiver.fromCtx(ctx, '');
             const input = await receiver.buildGraphInput();
             input.messages.push(new HumanMessage(`I just completed my checkpoint reminder: "${reminder.title}". Provide a highly motivational feedback!`));
-            input.activeAgent = 'goalAgent';
 
             const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
             const result = await runAgentGraph(input, receiver.llm!);
             await handleGraphOutput(ctx, thinking, receiver, result);
         } catch (e) {
-            console.error('Failed to invoke goalAgent for feedback', e);
+            console.error('Failed to invoke agent for checkpoint feedback', e);
         }
     }
 });
@@ -191,19 +190,18 @@ cobraineComposer.callbackQuery(/^reminder:snooze:/, async (ctx) => {
     }
     await ctx.answerCallbackQuery({ text: `Snoozed for ${minutes} minutes.` });
 
-    // Invoke goalAgent for feedback ONLY if it's a checkpoint reminder
+    // Invoke agent for feedback if it's a checkpoint reminder
     if (reminder?.checkpointId) {
         try {
             const receiver = await TelegramReceiver.fromCtx(ctx, '');
             const input = await receiver.buildGraphInput();
             input.messages.push(new HumanMessage(`I just snoozed my checkpoint reminder: "${reminder.title}" for ${minutes} minutes. Be pushy and remind me not to stall.`));
-            input.activeAgent = 'goalAgent';
 
             const thinking = { chatId: ctx.chat!.id, messageId: ctx.callbackQuery.message!.message_id };
             const result = await runAgentGraph(input, receiver.llm!);
             await handleGraphOutput(ctx, thinking, receiver, result);
         } catch (e) {
-            console.error('Failed to invoke goalAgent for feedback', e);
+            console.error('Failed to invoke agent for checkpoint feedback', e);
         }
     }
 });
