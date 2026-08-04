@@ -50,7 +50,9 @@ export function buildMainAgentNode(llmWithTools: Runnable<any, any>) {
     const messages = state.messages;
 
     const additionalMetadata = `User Name: ${state.userContext.userFullName}\nLanguage: ${state.userContext.languageCode ?? 'en'}`;
-    const systemContent = [BASE_PROMPT, getEnvirontmentDetails(), `ADDITIONAL METADATA:\n\n${additionalMetadata}`].join("\n\n");
+    const environmentDetails = getEnvirontmentDetails()
+    console.log("ENVIRONMENT DETIALS: ", environmentDetails)
+    const systemContent = [BASE_PROMPT, environmentDetails, `ADDITIONAL METADATA:\n\n${additionalMetadata}`].join("\n\n");
     const systemMessage = new SystemMessage(systemContent);
 
     const messagesWithSystem = [systemMessage, ...messages];
