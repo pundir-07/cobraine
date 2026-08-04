@@ -24,6 +24,8 @@
     "@langchain/langgraph": "^1.4.8",
     "@langchain/openai": "^1.5.5",
     "bullmq": "^5.80.8",
+    "chalk": "^6.0.0",
+    "consola": "^3.4.2",
     "dotenv": "^17.4.2",
     "grammy": "^1.44.0",
     "openai": "^6.48.0",
