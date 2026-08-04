@@ -1,7 +1,13 @@
 import { pool } from '../lib/postgres';
 import { ProviderService, ProviderConfig } from './service.provider';
 
-const FREE_MESSAGE_LIMIT = 10;
+const FREE_MESSAGE_LIMIT = 20;
+
+export const PRIVILEGED_USERS: Record<string, string> = {
+    vaibhav: '953317136',
+    swati: '8887833817'
+    // The user will specify more names/ids to add here
+};
 
 export interface UsageCheckResult {
     /** Whether the user is allowed to invoke the LLM. */
@@ -37,8 +43,11 @@ export class UsageService {
             `SELECT telegram_id FROM users WHERE id = $1`,
             [userUuid]
         );
-        if (userRes.rows.length > 0 && String(userRes.rows[0].telegram_id) === '953317136') {
-            return { allowed: true };
+        if (userRes.rows.length > 0) {
+            const telegramId = String(userRes.rows[0].telegram_id);
+            if (Object.values(PRIVILEGED_USERS).includes(telegramId)) {
+                return { allowed: true };
+            }
         }
 
         // 2. Check and atomically increment the free message counter
