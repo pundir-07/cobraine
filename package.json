@@ -11,8 +11,10 @@
     "worker:reminders": "tsx watch src/workers/worker.reminder.ts",
     "redis": "redis-server .redis/redis.conf",
     "redis:ping": "redis-cli -h 127.0.0.1 -p 6379 ping",
-    "migrate:up": "node-pg-migrate up --migrations-dir ./migrations",
-    "migrate:down": "node-pg-migrate down --migrations-dir ./migrations --all",
+    "migrate:dev:up": "node-pg-migrate up --migrations-dir ./migrations",
+    "migrate:prod:up": "node-pg-migrate up --migrations-dir ./migrations --database-url-var DATABASE_URL_DEV",
+    "migrate:dev:down": "node-pg-migrate down --migrations-dir ./migrations --all",
+    "migrate:prod:down": "node-pg-migrate down --migrations-dir ./migrations --all",
     "migrate:create": "node-pg-migrate create"
   },
   "keywords": [],

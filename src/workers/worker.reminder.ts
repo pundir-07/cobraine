@@ -1,17 +1,15 @@
 import { Worker } from "bullmq";
 import { Bot, InlineKeyboard } from "grammy";
-import dotenv from "dotenv";
 import { connectRedis } from "../lib/redis";
 import { pool } from "../lib/postgres";
 import { ReminderService } from "../services/service.reminder"
 import { escapeHtml } from "../utils/utils.reminder";
-
-dotenv.config();
+import { config } from "@/config";
 
 const REMINDERS_QUEUE_NAME = "reminders";
 
 async function main() {
-    const bot = new Bot(process.env.BOT_TOKEN!);
+    const bot = new Bot(config.botToken!);
 
     const worker = new Worker(
         REMINDERS_QUEUE_NAME,
@@ -40,7 +38,7 @@ async function main() {
             await bot.api.sendMessage(
                 Number(reminder.chatId),
                 `🔔 <b>Reminder</b>\n\n${escapeHtml(reminder.title)}`,
-                { 
+                {
                     parse_mode: "HTML",
                     reply_markup: keyboard
                 },

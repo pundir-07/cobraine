@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { bot } from '../lib/telegram';
 import { Attachment } from '../agent/types/types.agent.attachment';
+import { config } from '@/config';
 
 /**
  * Resolved file reference — contains everything needed to consume the file
@@ -53,7 +54,7 @@ export class TelegramFileService {
             throw new Error(`TelegramFileService: Telegram returned no file_path for fileId=${fileId}`);
         }
 
-        const token = process.env.BOT_TOKEN;
+        const token = config.botToken;
         if (!token) {
             throw new Error('TelegramFileService: BOT_TOKEN is not set');
         }
@@ -110,7 +111,7 @@ export class TelegramFileService {
             throw new Error(`TelegramFileService: Telegram returned no file_path for fileId=${fileId}`);
         }
 
-        const token = process.env.BOT_TOKEN;
+        const token = config.botToken;
         if (!token) {
             throw new Error('TelegramFileService: BOT_TOKEN is not set');
         }

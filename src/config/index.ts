@@ -1,7 +1,11 @@
 import dotenv from "dotenv";
+import { consola } from "consola";
+import chalk from "chalk"
 dotenv.config();
 
+
 export const config = {
+  botToken: process.env[`BOT_TOKEN_${process.env.NODE_ENV}`],
   openrouter: {
     baseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
     apiKey: process.env.OPENROUTER_API_KEY ?? "",
@@ -14,7 +18,7 @@ export const config = {
   },
   postgres: {
     connectionString:
-      process.env.DATABASE_URL,
+      process.env[`DATABASE_URL_${process.env.NODE_ENV}`],
     maxPool: 20,
   },
   deepseek: {
@@ -27,3 +31,26 @@ export const config = {
     embeddingModel: process.env.VOYAGE_EMBEDDING_MODEL ?? "voyage-3",
   }
 } as const;
+
+function checkEnvironment() {
+  if (!config.botToken) {
+    console.error("BOT_TOKEN is required in the environment")
+    throw new Error("BOT_TOKEN is required in the environment");
+  }
+  if (!config.postgres.connectionString) {
+    console.error("Databse Connection String is required in the environment")
+    throw new Error("Database Connection String is required in the environment");
+
+  }
+  let db
+  if (config.postgres.connectionString.includes('supabase')) {
+    db = "Supabase"
+  } else {
+    db = "Postgres Local"
+  }
+  consola.box(chalk.cyan(`
+    Environment: ${process.env.NODE_ENV}
+    Database: ${db}
+    `))
+}
+checkEnvironment()
